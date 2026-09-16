@@ -58,6 +58,9 @@
     padding:12px 12px;border-radius:10px;font-size:16px;font-family:inherit;
   }
   input[type=number]:focus, input[type=email]:focus, input[type=password]:focus, select:focus{outline:none;border-color:var(--red);}
+  input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:3px;background:var(--bg-elev2);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--red);border:3px solid var(--text);cursor:pointer;}
+  input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--red);border:3px solid var(--text);cursor:pointer;}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
   .chip{
     background:var(--bg-elev2);border:1px solid var(--border);color:var(--text-dim);
@@ -166,7 +169,11 @@
       <div id="pilotVentWidget"></div>
       <div class="field" style="margin-top:6px;">
         <label>Cran RÉEL de l'aération basse sur le barbecue, là maintenant</label>
-        <input type="number" id="pilotActualBottom" min="1" max="4" step="0.5">
+        <div style="text-align:center;font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;" id="pilotActualBottomVal">4</div>
+        <input type="range" id="pilotActualBottom" min="1" max="4" step="0.5" style="width:100%;" value="4">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:2px;padding:0 2px;">
+          <span>1</span><span>1.5</span><span>2</span><span>2.5</span><span>3</span><span>3.5</span><span>4</span>
+        </div>
       </div>
 
       <div class="divider"></div>
@@ -174,11 +181,12 @@
       <div id="pilotTopVentWidget"></div>
       <div class="field" style="margin-top:6px;">
         <label>État RÉEL de l'aération haute, là maintenant</label>
-        <select id="pilotActualTop">
-          <option value="grand-ouvert">Grande ouverte</option>
-          <option value="mi-ouvert">Mi-ouverte</option>
-          <option value="presque-ferme">Presque fermée</option>
-        </select>
+        <div id="pilotTopDial" style="margin-bottom:6px;"></div>
+        <div style="text-align:center;font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;" id="pilotActualTopVal">100%</div>
+        <input type="range" id="pilotActualTop" min="0" max="100" step="5" style="width:100%;" value="100">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:2px;padding:0 2px;">
+          <span>Fermée</span><span>Grande ouverte</span>
+        </div>
       </div>
 
       <div class="note" style="margin-top:10px;" id="pilotRampNote"></div>
@@ -615,6 +623,30 @@ function interpolateTeq(points, pct){
 }
 function predictTemp(T0, Teq, tauMin, elapsedMin){
   return Teq + (T0-Teq)*Math.exp(-elapsedMin/tauMin);
+}
+// Modèle avec inertie : un vrai lit de braises ne réagit pas instantanément à un
+// changement d'aération. Pendant un "délai d'inertie" (deadTimeMin), la température
+// continue sur sa lancée actuelle (pente récemment observée) ; ce n'est qu'après ce
+// délai que la convergence exponentielle vers le nouvel équilibre (Téq) prend le relais.
+// Résultat : une courbe continue et physiquement plausible, sans décrochage brutal.
+function predictTempInertial(T0, slopeNow, Teq, tauMin, elapsedMin, deadTimeMin){
+  if(elapsedMin <= deadTimeMin){
+    return T0 + slopeNow*elapsedMin;
+  }
+  const tAtDead = T0 + slopeNow*deadTimeMin;
+  const t2 = elapsedMin - deadTimeMin;
+  return Teq + (tAtDead-Teq)*Math.exp(-t2/tauMin);
+}
+function pilotRecentSlope(chartHistory, windowMin){
+  if(!chartHistory || chartHistory.length<2) return 0;
+  const last = chartHistory[chartHistory.length-1];
+  const cutoff = last.t - windowMin*60000;
+  const windowPts = chartHistory.filter(p=>p.t>=cutoff);
+  if(windowPts.length<2) return 0;
+  const first = windowPts[0];
+  const dtMin = (last.t-first.t)/60000;
+  if(dtMin<0.5) return 0;
+  return (last.temp-first.temp)/dtMin;
 }
 
 async function computeRecommendation(temp, duration, manualConfig){
@@ -1364,11 +1396,14 @@ async function pilotStart(cook){
   pilot.tau = TAU_MINUTES[cook.config] || 9;
   pilot.lastPredTime = null; pilot.lastPredTemp = null;
   pilot.currentTargetPercent = 100; pilot.currentTargetPosition = 4; pilot.previousPosition = 4;
-  pilot.topVentActual = 'grand-ouvert';
+  pilot.topVentActual = 100;
   pilot.fireAlert = { peak:null, targetReached:false, alerting:false };
   els('pilotPanel').style.display = 'block';
   els('pilotActualBottom').value = 4;
-  els('pilotActualTop').value = 'grand-ouvert';
+  els('pilotActualBottomVal').textContent = '4';
+  els('pilotActualTop').value = 100;
+  els('pilotActualTopVal').textContent = '100%';
+  els('pilotTopDial').innerHTML = svgTopVentDial(100);
   els('pilotRampNote').textContent = "Montée en cours — mesure du rythme en cours, patiente quelques relevés.";
   els('pilotPredictNote').textContent = ''; els('pilotCompareNote').textContent = '';
   pilotRenderVentWidget();
@@ -1407,17 +1442,33 @@ function pilotTopVentRecommendation(ambientTemp, cook){
   const excess = ambientTemp - cook.targetTemp;
   const tol = settings.tolerance;
   const bottomNearMin = pilot.currentTargetPosition != null && pilot.currentTargetPosition <= 1.5;
-  if(bottomNearMin && excess > 4*tol) return {level:'presque-ferme', label:'Presque fermée', color:'var(--red)'};
-  if(bottomNearMin && excess > 2*tol) return {level:'mi-ouvert', label:'Mi-ouverte', color:'var(--gold)'};
-  return {level:'grand-ouvert', label:'Grande ouverte', color:'var(--good)'};
+  if(!bottomNearMin || excess <= 2*tol) return {pct:100, label:'Grande ouverte', color:'var(--good)'};
+  const t = Math.min(1, (excess - 2*tol) / (4*tol));
+  const pct = Math.round(100 - t*80);
+  const label = pct>=70 ? 'Grande ouverte' : pct>=35 ? 'Mi-ouverte' : 'Presque fermée';
+  const color = pct>=70 ? 'var(--good)' : pct>=35 ? 'var(--gold)' : 'var(--red)';
+  return {pct, label, color};
+}
+function svgTopVentDial(pctOpen){
+  const rotationDeg = (100-pctOpen)/100 * 45;
+  const holes = [[-17,-17],[17,-17],[-17,17],[17,17]]
+    .map(([cx,cy]) => `<circle cx="${cx}" cy="${cy}" r="8.5" fill="#161616"/>`).join('');
+  return `<svg viewBox="-50 -50 100 100" width="110" height="110" style="display:block;margin:0 auto;" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="0" cy="0" r="46" fill="#c9c9c9" stroke="#888" stroke-width="1.5"/>
+    ${holes}
+    <g transform="rotate(${rotationDeg.toFixed(1)})">
+      <circle cx="0" cy="0" r="4" fill="#8a5a30"/>
+      <rect x="-3" y="28" width="6" height="20" rx="2" fill="#3a3a3a"/>
+    </g>
+  </svg>`;
 }
 function pilotRenderTopVentWidget(ambientTemp, cook){
-  const rec = ambientTemp!=null ? pilotTopVentRecommendation(ambientTemp, cook) : {level:'grand-ouvert', label:'Grande ouverte', color:'var(--good)'};
+  const rec = ambientTemp!=null ? pilotTopVentRecommendation(ambientTemp, cook) : {pct:100, label:'Grande ouverte', color:'var(--good)'};
   const el = els('pilotTopVentWidget');
   el.innerHTML = '<div style="text-align:center;padding:10px 0;">' +
     '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">Aération haute — recommandation</div>' +
-    '<div style="font-size:20px;font-weight:700;color:'+rec.color+';margin:4px 0;">' + rec.label + '</div>' +
-    (rec.level!=='grand-ouvert' ? '<div style="font-size:12px;color:var(--text-dim);">Basse déjà quasi fermée et écart important avec la cible — freine via la haute en renfort.</div>' : '<div style="font-size:12px;color:var(--text-dim);">Reste grande ouverte sauf emballement de température.</div>') +
+    '<div style="font-size:20px;font-weight:700;color:'+rec.color+';margin:4px 0;">' + rec.label + ' (' + rec.pct + '%)</div>' +
+    (rec.pct<100 ? '<div style="font-size:12px;color:var(--text-dim);">Basse déjà quasi fermée et écart important avec la cible — freine via la haute en renfort.</div>' : '<div style="font-size:12px;color:var(--text-dim);">Reste grande ouverte sauf emballement de température.</div>') +
     '</div>';
 }
 function pilotSlope(){
@@ -1436,8 +1487,9 @@ function pilotSlopeOf(buffer, minWindowMin){
   return (last.temp-first.temp)/dtMin;
 }
 function pilotRenderChart(cook){
+  const slopeNow = pilotRecentSlope(pilot.chartHistory, 4);
   els('pilotChart').innerHTML = svgTempChart(pilot.chartHistory, cook.targetTemp, settings.tolerance,
-    { teqPoints: pilot.teqPoints, percent: pilot.currentTargetPercent, tau: pilot.tau });
+    { teqPoints: pilot.teqPoints, percent: pilot.currentTargetPercent, tau: pilot.tau, slopeNow, deadTime: pilot.tau*0.5 });
 }
 function pilotMilestoneInfo(cook, internalTemp){
   const food = findFoodItem(cook.foodKey);
@@ -1544,7 +1596,8 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
 
   const Teq = interpolateTeq(pilot.teqPoints, pilot.currentTargetPercent);
   if(Teq != null){
-    pilot.lastPredTemp = predictTemp(ambientTemp, Teq, pilot.tau, PILOT_STABILIZE_INTERVAL_MIN);
+    const slopeNow = pilotRecentSlope(pilot.chartHistory, 4);
+    pilot.lastPredTemp = predictTempInertial(ambientTemp, slopeNow, Teq, pilot.tau, PILOT_STABILIZE_INTERVAL_MIN, pilot.tau*0.5);
     pilot.lastPredTime = now;
     els('pilotPredictNote').textContent = 'Prochaine vérification dans ~' + PILOT_STABILIZE_INTERVAL_MIN + ' min — prévision : ' + pilot.lastPredTemp.toFixed(1) + '°C.';
   }
@@ -1552,8 +1605,9 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
   pilotRenderPhase();
 }
 
-els('pilotActualBottom').addEventListener('change', () => {
+els('pilotActualBottom').addEventListener('input', () => {
   const v = parseFloat(els('pilotActualBottom').value);
+  els('pilotActualBottomVal').textContent = v;
   if(isNaN(v) || !pilot.active) return;
   const clamped = Math.max(1, Math.min(settings.maxPosition, v));
   pilot.previousPosition = clamped;
@@ -1562,8 +1616,11 @@ els('pilotActualBottom').addEventListener('change', () => {
   pilot.lastPredTemp = null; pilot.lastPredTime = null;
   pilotRenderVentWidget();
 });
-els('pilotActualTop').addEventListener('change', () => {
-  pilot.topVentActual = els('pilotActualTop').value;
+els('pilotActualTop').addEventListener('input', () => {
+  const v = parseFloat(els('pilotActualTop').value);
+  pilot.topVentActual = v;
+  els('pilotActualTopVal').textContent = v + '%';
+  els('pilotTopDial').innerHTML = svgTopVentDial(v);
 });
 
 // ===================== GRAPHIQUE DE STABILITÉ (SVG) — prédictif =====================
@@ -1574,14 +1631,16 @@ function svgTempChart(history, targetTemp, tolerance, predictModel){
   }
   const t0 = history[0].t;
   const lastPoint = history[history.length-1];
-  const horizonMin = 15, steps = 6;
+  const horizonMin = 20, steps = 10;
   let predPts = [];
   if(predictModel && predictModel.teqPoints){
     const Teq = interpolateTeq(predictModel.teqPoints, predictModel.percent);
     if(Teq != null){
+      const slopeNow = predictModel.slopeNow || 0;
+      const deadTime = predictModel.deadTime!=null ? predictModel.deadTime : predictModel.tau*0.5;
       for(let i=0;i<=steps;i++){
         const dm = horizonMin*i/steps;
-        predPts.push({ m: (lastPoint.t-t0)/60000 + dm, temp: predictTemp(lastPoint.temp, Teq, predictModel.tau, dm) });
+        predPts.push({ m: (lastPoint.t-t0)/60000 + dm, temp: predictTempInertial(lastPoint.temp, slopeNow, Teq, predictModel.tau, dm, deadTime) });
       }
     }
   }
