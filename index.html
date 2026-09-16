@@ -137,13 +137,44 @@
 </style>
 </head>
 <body>
+<div id="userGateOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;flex-direction:column;padding:28px 20px;overflow-y:auto;">
+  <div style="text-align:center;margin:20px 0;">
+    <div style="font-size:40px;">🔥</div>
+    <h2 style="margin:8px 0 4px;">Qui cuisine ?</h2>
+    <div class="note" style="margin-top:0;">Choisis ton profil pour retrouver ton compte MEATER et ton historique.</div>
+  </div>
+  <div id="userGateList" style="display:flex;flex-direction:column;gap:10px;"></div>
+  <button class="btn btn-ghost" id="btnGateAddUser" style="margin-top:16px;border-color:var(--border);">+ Nouveau profil</button>
+</div>
+
+<div id="newProfileOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1001;flex-direction:column;padding:28px 20px;overflow-y:auto;">
+  <h2 style="margin:8px 0 14px;">Nouveau profil</h2>
+  <div class="field">
+    <label>Prénom</label>
+    <input type="text" id="npName" placeholder="Ton prénom" value="Moi">
+  </div>
+  <div class="field">
+    <label>Type de barbecue</label>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="btn btn-ghost" id="npBbqCharbon" style="flex:1;height:auto;padding:12px 6px;border-color:var(--red);color:var(--text);">🔥 Charbon<br><span style="font-size:9px;font-weight:400;color:var(--text-dim);">Snake, aération, pilotage complet</span></button>
+      <button type="button" class="btn btn-ghost" id="npBbqGaz" style="flex:1;height:auto;padding:12px 6px;border-color:var(--border);color:var(--text-dim);">🔵 Gaz<br><span style="font-size:9px;font-weight:400;color:var(--text-dim);">Suivi de recette + alertes</span></button>
+    </div>
+  </div>
+  <div class="field">
+    <label>Code local (optionnel)</label>
+    <input type="text" id="npPin" placeholder="4 chiffres ou plus, laisse vide si inutile">
+  </div>
+  <button class="btn btn-primary" id="btnCreateProfile" style="margin-top:8px;">Créer le profil</button>
+</div>
+
 <div class="app">
   <div class="header">
     <div class="flame">🔥</div>
-    <div>
+    <div style="flex:1;">
       <div class="brand">SNAKE <span>PILOT</span></div>
       <div class="subtitle">Pilotage du Weber Kettle — apprend de tes cuissons</div>
     </div>
+    <div style="text-align:right;font-size:9px;color:var(--text-dim);line-height:1.5;" id="activeAccountBadge"></div>
   </div>
 
   <!-- SCREEN: NEW COOK -->
@@ -178,6 +209,7 @@
       <h2 id="pilotPhaseLabel">Pilotage</h2>
       <div id="pilotChart" style="margin:6px 0;"></div>
 
+      <div id="charcoalPilotWidgets">
       <div id="pilotVentWidget"></div>
       <div class="field" style="margin-top:6px;">
         <label>Cran RÉEL de l'aération basse sur le barbecue, là maintenant</label>
@@ -199,6 +231,7 @@
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:2px;padding:0 2px;">
           <span>Fermée</span><span>Grande ouverte</span>
         </div>
+      </div>
       </div>
 
       <div class="note" style="margin-top:10px;" id="pilotRampNote"></div>
@@ -222,7 +255,7 @@
           <input type="number" id="inDuration" value="8" min="0.5" max="24" step="0.5">
           <div class="chips" id="durChips"></div>
         </div>
-        <div class="field">
+        <div class="field" id="snakeConfigField">
           <label>Configuration du snake</label>
           <select id="inConfig">
             <option value="auto">Auto (recommandé)</option>
@@ -238,6 +271,9 @@
       <div class="card" id="resultCard" style="display:none;">
         <h2 id="resultTitle">Recommandation</h2>
 
+        <div class="note" id="gasResultNote" style="display:none;"></div>
+
+        <div id="charcoalResultDetails">
         <div class="svg-wrap" id="svgCross"></div>
         <div class="note center" id="crossLabel"></div>
 
@@ -265,6 +301,7 @@
 
         <span class="collapse-trigger" id="toggleDetail">Voir le détail de calibration</span>
         <div class="collapse-body" id="detailBody"></div>
+        </div>
 
         <div style="height:14px;"></div>
         <button class="btn btn-primary" id="btnStart">Démarrer cette cuisson</button>
@@ -357,12 +394,24 @@
   <!-- SCREEN: SETTINGS -->
   <div class="screen" id="screen-settings">
     <div class="card">
-      <h2>Mes repères d'aération</h2>
+      <h2>Profils &amp; comptes MEATER</h2>
       <div class="note" style="margin-top:0;">
+        Chaque profil a son propre compte MEATER et son propre historique. La calibration du barbecue (repères, apprentissage du foyer) reste partagée entre tous les profils — c'est le même kettle physique.
+        <br><br>
+        ⚠️ Ceci n'est pas une vraie sécurité : Snake Pilot tourne entièrement dans ton navigateur, sans serveur. Le code local sert juste à éviter les mélanges entre plusieurs personnes sur le même téléphone.
+      </div>
+      <div id="userList" style="display:flex;flex-direction:column;gap:8px;margin:10px 0;"></div>
+      <button class="btn btn-ghost" id="btnAddUser" style="border-color:var(--border);">+ Ajouter un profil</button>
+    </div>
+
+    <div class="card">
+      <h2>Mes repères d'aération</h2>
+      <div class="note" style="margin-top:0;" id="ventCalibNote">
         Définis ici comment ton propre levier d'aération basse est gradué. Le repère 1 = fermé (0%), le repère maximum = 100% ouvert.
         Si ta position "fermée" laisse un léger filet d'air (courant sur certains Kettle), démarre quand même sur le repère 1 :
         la calibration corrigera l'écart après ton premier test.
       </div>
+      <div id="charcoalVentSettings">
       <div class="field">
         <label>Nombre total de repères (ex : 4 = repères 1 à 4)</label>
         <input type="number" id="setMaxPos" min="2" max="10" step="1">
@@ -373,6 +422,7 @@
           <option value="0.5">Demi-repère (1, 1.5, 2, 2.5…)</option>
           <option value="1">Repère entier uniquement (1, 2, 3…)</option>
         </select>
+      </div>
       </div>
       <div class="field">
         <label>Tolérance de réussite (± °C autour de la cible)</label>
@@ -474,7 +524,7 @@
 
       <div id="trackChart" style="line-height:0;"></div>
 
-      <div style="display:flex;gap:6px;">
+      <div id="trackVentRow" style="display:flex;gap:6px;">
         <div style="flex:1;background:var(--bg-elev2);border-radius:8px;padding:5px 8px;">
           <div style="font-size:8px;color:var(--text-dim);">AÉRATION RECOMMANDÉE</div>
           <div style="font-size:16px;font-weight:700;" id="trackVentReco">--</div>
@@ -512,6 +562,47 @@
 /* ============================= STORE ============================= */
 let store, usingDb = false;
 
+// ===================== PROFILS MULTI-UTILISATEURS =====================
+// Attention : Snake Pilot est une app 100% statique (aucun serveur). Ce système de profils
+// n'est PAS une authentification sécurisée — n'importe qui avec les outils de développement
+// du navigateur peut le contourner. C'est un simple sélecteur pratique pour éviter les
+// mélanges de compte MEATER / historique entre plusieurs personnes sur le même appareil.
+// La calibration du barbecue (repères, apprentissage du foyer) reste PARTAGÉE entre profils,
+// car c'est une caractéristique physique du kettle, pas de la personne qui cuisine.
+let currentUserId = 'default';
+let activeBbqType = 'charbon';
+function spLoadUsers(){
+  try{ const raw = JSON.parse(localStorage.getItem('sp_users_index')); return Array.isArray(raw) ? raw : []; }catch(e){ return []; }
+}
+function spSaveUsers(list){ try{ localStorage.setItem('sp_users_index', JSON.stringify(list)); }catch(e){} }
+function spGetCurrentUserId(){ try{ return localStorage.getItem('sp_current_user') || 'default'; }catch(e){ return 'default'; } }
+function spSetCurrentUserId(id){ try{ localStorage.setItem('sp_current_user', id); }catch(e){} }
+async function spHashPin(pin){
+  if(window.crypto && window.crypto.subtle){
+    try{
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }catch(e){}
+  }
+  let h=0; for(let i=0;i<pin.length;i++){ h=(h*31+pin.charCodeAt(i))>>>0; }
+  return 'fb_'+h;
+}
+function nsPath(path){
+  const shared = path==='settings/main' || path==='settings/burn' || path.indexOf('calib/')===0;
+  if(shared) return path;
+  const prefix = (currentUserId && currentUserId!=='default') ? ('users/'+currentUserId+'/') : '';
+  return prefix + path;
+}
+function wrapStoreWithNamespace(raw){
+  return {
+    getDoc: (path) => raw.getDoc(nsPath(path)),
+    setDoc: (path, data) => raw.setDoc(nsPath(path), data),
+    updateDoc: (path, data) => raw.updateDoc(nsPath(path), data),
+    addDoc: (collPath, data) => raw.addDoc(nsPath(collPath), data),
+    listCollection: (collPath) => raw.listCollection(nsPath(collPath)),
+    clearCollection: (collPath) => raw.clearCollection(nsPath(collPath)),
+  };
+}
 function makeLocalStore(){
   const KEY = 'snakepilot_data_v1';
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {docs:{}, collections:{}}; } catch(e){ return {docs:{}, collections:{}}; } }
@@ -538,12 +629,13 @@ function makeDbStore(db){
 }
 
 async function initStore(){
+  let raw;
   try{
     const db = await claude.use('db');
-    if(db){ usingDb = true; return makeDbStore(db); }
+    if(db){ usingDb = true; raw = makeDbStore(db); }
   } catch(e){ console.warn('db capability unavailable, using local storage', e); }
-  usingDb = false;
-  return makeLocalStore();
+  if(!raw){ usingDb = false; raw = makeLocalStore(); }
+  return wrapStoreWithNamespace(raw);
 }
 
 /* ============================= MODEL ============================= */
@@ -746,6 +838,14 @@ async function startCook(temp, duration, rec){
 }
 
 async function completeCook(cookId, cook, actualTemp, satisfaction, actualDuration, notes){
+  if(cook.config === 'gaz'){
+    await store.updateDoc('cooks/'+cookId, {
+      status:'completed', actualTemp, satisfaction, actualDuration: actualDuration||null, notes: notes||'',
+      completedAt: new Date().toISOString()
+    });
+    await store.setDoc('settings/active', {cookId:null});
+    return { isGas:true };
+  }
   const delta = actualTemp - cook.targetTemp;
   const isGood = Math.abs(delta) <= settings.tolerance && satisfaction !== 'instable';
   let calib = await getCalibBucket(cook.config, cook.bandIdx);
@@ -992,6 +1092,13 @@ function highlightChip(container, targetInput){
 }
 
 async function renderRecommendation(temp, duration, manualConfig){
+  els('resultCard').style.display = 'block';
+  if(activeBbqType === 'gaz'){
+    currentRec = { isGas:true, targetTemp:temp, targetDuration:duration };
+    els('resultTitle').textContent = 'Suivi gaz pour ' + temp + '°C / ' + duration + 'h';
+    els('gasResultNote').textContent = 'Règle ton brûleur pour atteindre ' + temp + '°C, puis démarre le suivi. Connecte une sonde MEATER (onglet dédié) pour le suivi de température, l\'étape en cours, et les alertes en cas de baisse ou de hausse.';
+    return;
+  }
   currentRec = await computeRecommendation(temp, duration, manualConfig);
   const rec = currentRec;
   const isBasket = CONFIGS[rec.config].isBasket;
@@ -1042,6 +1149,17 @@ els('btnStart').addEventListener('click', async () => {
   if(!currentRec) return;
   const temp = parseFloat(els('inTemp').value);
   const duration = parseFloat(els('inDuration').value);
+  if(currentRec.isGas){
+    activeCookId = await startCook(temp, duration, {config:'gaz', bandIdx:0, percent:null, position:null, maillons:null, briquettes:null, burnRate:null, stars:0});
+    activeCookData = {
+      targetTemp:temp, targetDuration:duration, config:'gaz', bandIdx:0,
+      percentUsed:null, positionUsed:null, maillons:null, briquettes:null, burnRateUsed:null,
+      createdAt:new Date().toISOString(), foodKey: lastUsedFoodKey
+    };
+    showActiveCook();
+    pilotStart(activeCookData);
+    return;
+  }
   activeCookId = await startCook(temp, duration, currentRec);
   activeCookData = {
     targetTemp:temp, targetDuration:duration, config:currentRec.config, bandIdx:currentRec.bandIdx,
@@ -1096,6 +1214,13 @@ els('btnSaveFinish').addEventListener('click', async () => {
   const result = await completeCook(activeCookId, activeCookData, actualTemp, satisfaction, actualDuration, notes);
 
   els('finishResultCard').style.display = 'block';
+  if(result.isGas){
+    els('finishResultBody').innerHTML = '<div class="note" style="margin-top:0;">Cuisson enregistrée. Barbecue gaz : pas de calibration d\'aération à ajuster ici.</div>';
+    activeCookId = null; activeCookData = null;
+    hideActiveCook();
+    pilotStop();
+    return;
+  }
   const badgeClass = result.isGood ? 'badge-good' : 'badge-bad';
   const badgeText = result.isGood ? 'Prévision validée ✅' : 'Correction appliquée ⚠️';
   const deltaTxt = (result.delta>=0?'+':'') + result.delta.toFixed(1) + '°C';
@@ -1402,6 +1527,7 @@ els('btnMeaterLogin').addEventListener('click', async () => {
   els('meaterLoginNote').textContent = 'Connexion en cours…';
   try{
     const data = await meaterLogin(email, password);
+    data.email = email;
     meaterAuth = data;
     await store.setDoc('meater/auth', data);
     els('meaterLoginCard').style.display = 'none';
@@ -1411,6 +1537,7 @@ els('btnMeaterLogin').addEventListener('click', async () => {
     if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     if(!meaterPollTimer) meaterPollTimer = setInterval(meaterPollOnce, 30000);
     await meaterPollOnce();
+    updateActiveAccountBadge();
   }catch(e){
     els('meaterLoginNote').textContent = "Connexion impossible : " + e.message + ". Si le message apparaît instantanément, il se peut que le navigateur bloque l'appel direct à l'API MEATER (CORS) — ce cas nécessitera la version « robuste » avec relais externe.";
   }
@@ -1451,7 +1578,7 @@ async function meaterRestoreSession(){
 // sans que ce soit un problème de feu).
 const PILOT_STABILIZE_INTERVAL_MIN = 3;
 const PILOT_CHART_MAX_POINTS = 120;
-let pilot = { active:false, phase:null, teqPoints:null, tau:null, history:[], chartHistory:[],
+let pilot = { active:false, phase:null, isGas:false, teqPoints:null, tau:null, history:[], chartHistory:[],
   lastPredTime:null, lastPredTemp:null, currentTargetPercent:null, currentTargetPosition:null, previousPosition:null,
   internalHistory:[], topVentActual:100, emergencyClose:null, emergencyCooldownUntil:null,
   fireAlert:{ peak:null, targetReached:false, alerting:false },
@@ -1460,8 +1587,32 @@ let pilot = { active:false, phase:null, teqPoints:null, tau:null, history:[], ch
 
 async function pilotStart(cook){
   pilot.active = true;
-  pilot.phase = 'ramp';
+  pilot.isGas = (cook.config === 'gaz');
   pilot.history = []; pilot.chartHistory = []; pilot.internalHistory = [];
+  pilot.perturbation = { status:'none', tier:null, detectedAt:null, preTemp:null, minTemp:null, reason:null, recoveringSince:null };
+  pilot.perturbedPeriods = [];
+  pilot.actionLog = [];
+  els('pilotPerturbBox').style.display = 'none';
+  pilot.fireAlert = { peak:null, targetReached:false, alerting:false };
+  els('pilotPanel').style.display = 'block';
+  els('trackWrap').style.display = 'flex';
+  els('trackEmptyNote').style.display = 'none';
+
+  if(pilot.isGas){
+    pilot.phase = 'tracking';
+    pilot.teqPoints = null; pilot.tau = null;
+    pilot.currentTargetPercent = null; pilot.currentTargetPosition = null; pilot.previousPosition = null;
+    pilot.lastPredTime = null; pilot.lastPredTemp = null;
+    els('pilotRampNote').textContent = "Suivi en cours — règle ton brûleur pour atteindre la cible.";
+    els('pilotPredictNote').textContent = ''; els('pilotCompareNote').textContent = '';
+    pilotRenderPhase();
+    pilotRenderChart(cook);
+    pilotRenderMilestone(cook, null);
+    pilotRenderTracking(cook, null, null);
+    return;
+  }
+
+  pilot.phase = 'ramp';
   pilot.teqPoints = await buildTeqPoints(cook.config);
   pilot.tau = TAU_MINUTES[cook.config] || 9;
   pilot.lastPredTime = null; pilot.lastPredTemp = null;
@@ -1469,15 +1620,7 @@ async function pilotStart(cook){
   pilot.topVentActual = 100;
   pilot.emergencyClose = null;
   pilot.emergencyCooldownUntil = null;
-  pilot.perturbation = { status:'none', tier:null, detectedAt:null, preTemp:null, minTemp:null, reason:null, recoveringSince:null };
-  pilot.perturbedPeriods = [];
-  pilot.actionLog = [];
   pilot.userDeclaredPosition = 4;
-  els('pilotPerturbBox').style.display = 'none';
-  pilot.fireAlert = { peak:null, targetReached:false, alerting:false };
-  els('pilotPanel').style.display = 'block';
-  els('trackWrap').style.display = 'flex';
-  els('trackEmptyNote').style.display = 'none';
   els('pilotActualBottom').value = 4;
   els('pilotActualBottomVal').textContent = '4';
   els('pilotActualTop').value = 100;
@@ -1500,8 +1643,38 @@ function pilotStop(){
   meaterStopFireAlert();
 }
 function pilotRenderPhase(){
-  const labels = {ramp:'🔺 Montée en température', stabilizing:'🎯 Stabilisation'};
+  const labels = {ramp:'🔺 Montée en température', stabilizing:'🎯 Stabilisation', tracking:'📡 Suivi (gaz)'};
   els('pilotPhaseLabel').textContent = labels[pilot.phase] || 'Pilotage';
+}
+function pilotEvaluateGasAlert(ambientTemp, cook){
+  const delta = ambientTemp - cook.targetTemp;
+  const threshold = settings.tolerance*1.5;
+  if(Math.abs(delta) <= threshold){
+    if(pilot.fireAlert.alerting) meaterStopFireAlert();
+    return;
+  }
+  const h = pilot.chartHistory;
+  const sustained = h.length>=2 && Math.abs(h[h.length-2].temp - cook.targetTemp) > threshold;
+  if(sustained && !pilot.fireAlert.alerting){
+    pilotTriggerGasAlert(delta>0?'hausse':'baisse', ambientTemp, delta);
+  }
+}
+function pilotTriggerGasAlert(direction, ambientTemp, delta){
+  pilot.fireAlert.alerting = true;
+  els('meaterAlertBanner').style.display = 'block';
+  els('meaterAlertText').textContent = direction==='hausse'
+    ? 'Température en hausse : ' + ambientTemp.toFixed(1) + '°C, ' + Math.abs(delta).toFixed(1) + "°C au-dessus de la cible. Vérifie le réglage du brûleur."
+    : 'Température en baisse : ' + ambientTemp.toFixed(1) + '°C, ' + Math.abs(delta).toFixed(1) + "°C en dessous de la cible. Vérifie la bouteille de gaz ou le brûleur.";
+  els('meaterAlertBanner').scrollIntoView({behavior:'smooth'});
+  meaterBeep();
+  if(meaterAlertInterval) clearInterval(meaterAlertInterval);
+  meaterAlertInterval = setInterval(() => {
+    meaterBeep();
+    document.title = (document.title === meaterOriginalTitle) ? '🔥 Snake Pilot : température anormale !' : meaterOriginalTitle;
+  }, 8000);
+  if('Notification' in window && Notification.permission === 'granted'){
+    try{ new Notification('Snake Pilot — température anormale', {body: direction==='hausse' ? 'Hausse détectée, vérifie le brûleur.' : 'Baisse détectée, vérifie le gaz.'}); }catch(e){}
+  }
 }
 function pilotRenderVentWidget(){
   const el = els('pilotVentWidget');
@@ -1571,22 +1744,24 @@ function pilotSlopeOf(buffer, minWindowMin){
   return (last.temp-first.temp)/dtMin;
 }
 function pilotRenderChart(cook){
-  const slopeNow = pilotRecentSlope(pilot.chartHistory, 4);
-  const deadTime = pilot.tau*0.5;
-  const Teq = interpolateTeq(pilot.teqPoints, pilot.currentTargetPercent);
   let predPts = null;
-  if(Teq != null && pilot.chartHistory.length){
-    const last = pilot.chartHistory[pilot.chartHistory.length-1];
-    predPts = [];
-    for(let i=0;i<=10;i++){
-      const dm = 20*i/10;
-      predPts.push({ m: (last.t-pilot.chartHistory[0].t)/60000 + dm, temp: predictTempInertial(last.temp, slopeNow, Teq, pilot.tau, dm, deadTime) });
+  if(!pilot.isGas){
+    const slopeNow = pilotRecentSlope(pilot.chartHistory, 4);
+    const deadTime = pilot.tau*0.5;
+    const Teq = interpolateTeq(pilot.teqPoints, pilot.currentTargetPercent);
+    if(Teq != null && pilot.chartHistory.length){
+      const last = pilot.chartHistory[pilot.chartHistory.length-1];
+      predPts = [];
+      for(let i=0;i<=10;i++){
+        const dm = 20*i/10;
+        predPts.push({ m: (last.t-pilot.chartHistory[0].t)/60000 + dm, temp: predictTempInertial(last.temp, slopeNow, Teq, pilot.tau, dm, deadTime) });
+      }
     }
   }
   const lastInternal = pilot.internalHistory.length ? pilot.internalHistory[pilot.internalHistory.length-1].temp : null;
   const milestone = pilotMilestoneInfo(cook, lastInternal);
   const targetInternal = milestone.type !== 'duration' ? milestone.targetC : null;
-  const svg = svgCookChart(pilot.chartHistory, pilot.internalHistory, cook.targetTemp, targetInternal, settings.tolerance, pilot.actionLog, pilot.perturbedPeriods, predPts);
+  const svg = svgCookChart(pilot.chartHistory, pilot.internalHistory, cook.targetTemp, targetInternal, settings.tolerance, pilot.actionLog, pilot.perturbedPeriods, predPts, !pilot.isGas);
   els('pilotChart').innerHTML = svg;
   els('trackChart').innerHTML = svg;
 }
@@ -1890,6 +2065,12 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
     return; // chute suspecte en cours d'évaluation/confirmée : pas de correction, pas d'alerte feu
   }
 
+  if(pilot.isGas){
+    pilotEvaluateGasAlert(ambientTemp, cook);
+    pilotRenderPhase();
+    return;
+  }
+
   meaterEvaluateFireAlert(ambientTemp, cook);
   pilotRenderTopVentWidget(ambientTemp, cook);
 
@@ -2055,8 +2236,9 @@ els('pilotActualTop').addEventListener('input', () => {
 // Graphique enrichi façon MEATER : température à cœur + ambiante + cible, sur la même
 // chronologie, avec les réglages d'aération recommandés vs réellement appliqués, et les
 // périodes perturbées (couvercle/viande) surlignées.
-function svgCookChart(ambientHist, internalHist, targetAmbient, targetInternal, tolerance, actionLog, perturbedPeriods, predPts){
-  const W=340, H=210, padL=32, padR=32, padT=10, padB=40, laneH=22;
+function svgCookChart(ambientHist, internalHist, targetAmbient, targetInternal, tolerance, actionLog, perturbedPeriods, predPts, showVentLane){
+  if(showVentLane === undefined) showVentLane = true;
+  const W=340, H=210, padL=32, padR=32, padT=10, padB=(showVentLane?40:14), laneH=22;
   if(!ambientHist || ambientHist.length<2){
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}"><text x="${W/2}" y="${H/2}" fill="#9a9a9a" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">En attente de données…</text></svg>`;
   }
@@ -2100,22 +2282,24 @@ function svgCookChart(ambientHist, internalHist, targetAmbient, targetInternal, 
     svg += `<path d="${d}" fill="none" stroke="var(--text-dim)" stroke-width="1.3" stroke-dasharray="3 3"/>`;
   }
 
-  const laneY0 = plotBottom+8;
-  svg += `<rect x="${padL}" y="${laneY0.toFixed(1)}" width="${W-padL-padR}" height="${laneH}" fill="var(--bg-elev2)" rx="4"/>`;
-  svg += `<text x="${padL-4}" y="${(laneY0+6).toFixed(1)}" fill="#666" font-size="7" text-anchor="end">4</text>`;
-  svg += `<text x="${padL-4}" y="${(laneY0+laneH-1).toFixed(1)}" fill="#666" font-size="7" text-anchor="end">1</text>`;
-  (actionLog||[]).forEach(a => {
-    if(a.timestamp < t0) return;
-    const xx = x((a.timestamp-t0)/60000);
-    const frac = (a.newPosition-1)/3;
-    const yy = laneY0+laneH-3-frac*(laneH-6);
-    if(a.source === 'user-manual'){
-      svg += `<circle cx="${xx.toFixed(1)}" cy="${yy.toFixed(1)}" r="3.2" fill="#5b9bd5" stroke="var(--bg)" stroke-width="0.8"/>`;
-    } else {
-      svg += `<polygon points="${(xx-4).toFixed(1)},${(yy+3).toFixed(1)} ${(xx+4).toFixed(1)},${(yy+3).toFixed(1)} ${xx.toFixed(1)},${(yy-4.5).toFixed(1)}" fill="var(--gold)"/>`;
-    }
-  });
-  svg += `<text x="${padL}" y="${H-3}" fill="#9a9a9a" font-size="8">▲ aération reco.   ● aération réelle</text>`;
+  if(showVentLane){
+    const laneY0 = plotBottom+8;
+    svg += `<rect x="${padL}" y="${laneY0.toFixed(1)}" width="${W-padL-padR}" height="${laneH}" fill="var(--bg-elev2)" rx="4"/>`;
+    svg += `<text x="${padL-4}" y="${(laneY0+6).toFixed(1)}" fill="#666" font-size="7" text-anchor="end">4</text>`;
+    svg += `<text x="${padL-4}" y="${(laneY0+laneH-1).toFixed(1)}" fill="#666" font-size="7" text-anchor="end">1</text>`;
+    (actionLog||[]).forEach(a => {
+      if(a.timestamp < t0) return;
+      const xx = x((a.timestamp-t0)/60000);
+      const frac = (a.newPosition-1)/3;
+      const yy = laneY0+laneH-3-frac*(laneH-6);
+      if(a.source === 'user-manual'){
+        svg += `<circle cx="${xx.toFixed(1)}" cy="${yy.toFixed(1)}" r="3.2" fill="#5b9bd5" stroke="var(--bg)" stroke-width="0.8"/>`;
+      } else {
+        svg += `<polygon points="${(xx-4).toFixed(1)},${(yy+3).toFixed(1)} ${(xx+4).toFixed(1)},${(yy+3).toFixed(1)} ${xx.toFixed(1)},${(yy-4.5).toFixed(1)}" fill="var(--gold)"/>`;
+      }
+    });
+    svg += `<text x="${padL}" y="${H-3}" fill="#9a9a9a" font-size="8">▲ aération reco.   ● aération réelle</text>`;
+  }
 
   for(let i=0;i<=2;i++){
     const v = tMin+(tMax-tMin)*i/2, yy=y(v);
@@ -2212,7 +2396,202 @@ async function init(){
 
   await renderRecommendation(parseFloat(els('inTemp').value), parseFloat(els('inDuration').value), 'auto');
 }
-init();
+
+// ===================== PORTE D'ENTRÉE PROFIL & GESTION DES PROFILS =====================
+function spRenderUserList(){
+  const users = spLoadUsers();
+  const cur = spGetCurrentUserId();
+  const el = els('userList');
+  el.innerHTML = users.map(u => `
+    <div style="background:var(--bg-elev2);border-radius:10px;padding:10px 12px;${u.id===cur?'border:1px solid var(--red);':''}">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-weight:600;">${u.name}${u.id===cur?' <span style="color:var(--red);font-size:11px;">(actif)</span>':''}</div>
+          <div style="font-size:10px;color:var(--text-dim);">${u.pinHash ? 'Protégé par code' : 'Sans code'}</div>
+        </div>
+        ${u.id!==cur ? `<button class="btn btn-ghost" data-switch-user="${u.id}" style="width:auto;padding:6px 12px;border-color:var(--border);">Activer</button>` : ''}
+        ${users.length>1 ? `<button class="btn btn-ghost" data-del-user="${u.id}" style="width:auto;padding:6px 10px;border-color:var(--red);color:var(--red);">✕</button>` : ''}
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;color:var(--text-dim);">Barbecue :</span>
+        <select data-bbq-user="${u.id}" style="flex:1;font-size:11px;padding:4px 6px;width:auto;">
+          <option value="charbon" ${(u.bbqType||'charbon')==='charbon'?'selected':''}>🔥 Charbon</option>
+          <option value="gaz" ${u.bbqType==='gaz'?'selected':''}>🔵 Gaz</option>
+        </select>
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-switch-user]').forEach(b => b.addEventListener('click', () => spRequestSwitch(b.dataset.switchUser)));
+  el.querySelectorAll('[data-del-user]').forEach(b => b.addEventListener('click', () => spDeleteUser(b.dataset.delUser)));
+  el.querySelectorAll('[data-bbq-user]').forEach(s => s.addEventListener('change', () => spSetUserBbqType(s.dataset.bbqUser, s.value)));
+}
+function spSetUserBbqType(userId, type){
+  const users = spLoadUsers();
+  const u = users.find(x=>x.id===userId);
+  if(!u) return;
+  u.bbqType = type;
+  spSaveUsers(users);
+  if(userId === spGetCurrentUserId()){
+    activeBbqType = type;
+    applyBbqModeUI();
+  }
+  spRenderUserList();
+}
+function applyBbqModeUI(){
+  const isGas = activeBbqType === 'gaz';
+  const disp = (id, show) => { const e = els(id); if(e) e.style.display = show ? '' : 'none'; };
+  disp('snakeConfigField', !isGas);
+  disp('charcoalResultDetails', !isGas);
+  disp('gasResultNote', isGas);
+  disp('charcoalPilotWidgets', !isGas);
+  disp('charcoalVentSettings', !isGas);
+  disp('trackVentRow', !isGas);
+  els('ventCalibNote').textContent = isGas
+    ? "Barbecue gaz sélectionné — les repères d'aération ne s'appliquent pas. Change de type de barbecue dans « Profils » ci-dessus si besoin."
+    : "Définis ici comment ton propre levier d'aération basse est gradué. Le repère 1 = fermé (0%), le repère maximum = 100% ouvert. Si ta position \"fermée\" laisse un léger filet d'air (courant sur certains Kettle), démarre quand même sur le repère 1 : la calibration corrigera l'écart après ton premier test.";
+}
+function updateActiveAccountBadge(){
+  const users = spLoadUsers();
+  const u = users.find(x=>x.id===currentUserId);
+  const name = u ? u.name : 'Moi';
+  const email = (meaterAuth && meaterAuth.email) ? meaterAuth.email : 'MEATER non connecté';
+  els('activeAccountBadge').innerHTML = name + '<br>' + email;
+}
+async function spRequestSwitch(userId){
+  const users = spLoadUsers();
+  const u = users.find(x=>x.id===userId);
+  if(!u) return;
+  if(u.pinHash){
+    const pin = prompt('Code du profil « ' + u.name + ' »');
+    if(pin==null) return;
+    const h = await spHashPin(pin);
+    if(h !== u.pinHash){ alert('Code incorrect.'); return; }
+  }
+  spSetCurrentUserId(userId);
+  location.reload();
+}
+let npSelectedBbq = 'charbon';
+function npSetBbq(type){
+  npSelectedBbq = type;
+  els('npBbqCharbon').style.borderColor = type==='charbon' ? 'var(--red)' : 'var(--border)';
+  els('npBbqCharbon').style.color = type==='charbon' ? 'var(--text)' : 'var(--text-dim)';
+  els('npBbqGaz').style.borderColor = type==='gaz' ? 'var(--red)' : 'var(--border)';
+  els('npBbqGaz').style.color = type==='gaz' ? 'var(--text)' : 'var(--text-dim)';
+}
+els('npBbqCharbon').addEventListener('click', () => npSetBbq('charbon'));
+els('npBbqGaz').addEventListener('click', () => npSetBbq('gaz'));
+
+let npCreateResolve = null;
+let npForceId = null;
+function spShowNewProfileOverlay(forceId){
+  npForceId = forceId || null;
+  els('npName').value = forceId ? 'Moi' : '';
+  els('npPin').value = '';
+  npSetBbq('charbon');
+  els('newProfileOverlay').style.display = 'flex';
+  return new Promise((resolve) => { npCreateResolve = resolve; });
+}
+els('btnCreateProfile').addEventListener('click', async () => {
+  const name = els('npName').value.trim();
+  if(!name){ alert('Indique un prénom.'); return; }
+  const pin = els('npPin').value.trim();
+  const users = spLoadUsers();
+  const id = npForceId || ('u_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6));
+  const pinHash = pin ? await spHashPin(pin) : null;
+  users.push({id, name, pinHash, bbqType: npSelectedBbq});
+  spSaveUsers(users);
+  els('newProfileOverlay').style.display = 'none';
+  if(npCreateResolve) npCreateResolve(id);
+});
+async function spAddUserFlow(){
+  const id = await spShowNewProfileOverlay(null);
+  spRenderUserList();
+  return id;
+}
+function spDeleteUser(userId){
+  const users = spLoadUsers();
+  if(users.length<=1) return;
+  const u = users.find(x=>x.id===userId);
+  if(!u) return;
+  if(!confirm('Supprimer le profil « '+u.name+' » ? Son compte MEATER et son historique resteront stockés mais ne seront plus accessibles depuis cette liste.')) return;
+  const remaining = users.filter(x=>x.id!==userId);
+  spSaveUsers(remaining);
+  if(spGetCurrentUserId()===userId){
+    spSetCurrentUserId(remaining[0].id);
+    location.reload();
+    return;
+  }
+  spRenderUserList();
+}
+els('btnAddUser').addEventListener('click', spAddUserFlow);
+
+function spRenderGate(resolve){
+  const users = spLoadUsers();
+  const el = els('userGateList');
+  el.innerHTML = users.map(u => `
+    <button class="btn btn-ghost" data-gate-user="${u.id}" style="border-color:var(--border);text-align:left;padding:14px 16px;">
+      ${u.name} ${u.pinHash ? '🔒' : ''} <span style="font-size:10px;color:var(--text-dim);">· ${u.bbqType==='gaz'?'Gaz':'Charbon'}</span>
+    </button>
+  `).join('');
+  el.querySelectorAll('[data-gate-user]').forEach(b => b.addEventListener('click', async () => {
+    const userId = b.dataset.gateUser;
+    const u = users.find(x=>x.id===userId);
+    if(u.pinHash){
+      const pin = prompt('Code du profil « ' + u.name + ' »');
+      if(pin==null) return;
+      const h = await spHashPin(pin);
+      if(h !== u.pinHash){ alert('Code incorrect.'); return; }
+    }
+    spSetCurrentUserId(userId);
+    currentUserId = userId;
+    activeBbqType = u.bbqType || 'charbon';
+    els('userGateOverlay').style.display = 'none';
+    resolve();
+  }));
+  els('btnGateAddUser').onclick = async () => {
+    const newId = await spAddUserFlow();
+    if(newId){
+      const users2 = spLoadUsers();
+      const u2 = users2.find(x=>x.id===newId);
+      spSetCurrentUserId(newId);
+      currentUserId = newId;
+      activeBbqType = (u2 && u2.bbqType) || 'charbon';
+      els('userGateOverlay').style.display = 'none';
+      resolve();
+      return;
+    }
+    spRenderGate(resolve);
+  };
+}
+async function spInitGate(){
+  currentUserId = spGetCurrentUserId();
+  let users = spLoadUsers();
+  if(users.length===0){
+    const id = await spShowNewProfileOverlay('default');
+    spSetCurrentUserId(id);
+    currentUserId = id;
+    const u = spLoadUsers().find(x=>x.id===id);
+    activeBbqType = (u && u.bbqType) || 'charbon';
+    return;
+  }
+  if(users.length===1 && users[0].id==='default' && !users[0].pinHash){
+    currentUserId = 'default';
+    activeBbqType = users[0].bbqType || 'charbon';
+    return;
+  }
+  return new Promise((resolve) => {
+    spRenderGate(resolve);
+    els('userGateOverlay').style.display = 'flex';
+  });
+}
+
+(async () => {
+  await spInitGate();
+  spRenderUserList();
+  applyBbqModeUI();
+  await init();
+  updateActiveAccountBadge();
+})();
 </script>
 </body>
 </html>
