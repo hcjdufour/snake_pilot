@@ -162,7 +162,25 @@
     <div class="card" id="pilotPanel" style="display:none;">
       <h2 id="pilotPhaseLabel">Pilotage</h2>
       <div id="pilotChart" style="margin:6px 0;"></div>
+
       <div id="pilotVentWidget"></div>
+      <div class="field" style="margin-top:6px;">
+        <label>Cran RÉEL de l'aération basse sur le barbecue, là maintenant</label>
+        <input type="number" id="pilotActualBottom" min="1" max="4" step="0.5">
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="pilotTopVentWidget"></div>
+      <div class="field" style="margin-top:6px;">
+        <label>État RÉEL de l'aération haute, là maintenant</label>
+        <select id="pilotActualTop">
+          <option value="grand-ouvert">Grande ouverte</option>
+          <option value="mi-ouvert">Mi-ouverte</option>
+          <option value="presque-ferme">Presque fermée</option>
+        </select>
+      </div>
+
       <div class="note" style="margin-top:10px;" id="pilotRampNote"></div>
       <div class="note" id="pilotPredictNote"></div>
       <div class="note" id="pilotCompareNote"></div>
@@ -932,7 +950,7 @@ els('btnStart').addEventListener('click', async () => {
     foodKey: lastUsedFoodKey
   };
   showActiveCook();
-  if(CONFIGS[currentRec.config] && !CONFIGS[currentRec.config].isBasket) pilotStart(activeCookData);
+  if(CONFIGS[currentRec.config]) pilotStart(activeCookData);
 });
 
 function showActiveCook(){
@@ -1316,6 +1334,7 @@ async function meaterRestoreSession(){
     meaterAuth = saved;
     els('meaterLoginCard').style.display = 'none';
     els('meaterMonitorCard').style.display = 'block';
+    if(!meaterPollTimer) meaterPollTimer = setInterval(meaterPollOnce, 30000);
     try{ await meaterPollOnce(); }catch(e){}
   }
 }
@@ -1334,7 +1353,7 @@ const PILOT_STABILIZE_INTERVAL_MIN = 3;
 const PILOT_CHART_MAX_POINTS = 120;
 let pilot = { active:false, phase:null, teqPoints:null, tau:null, history:[], chartHistory:[],
   lastPredTime:null, lastPredTemp:null, currentTargetPercent:null, currentTargetPosition:null, previousPosition:null,
-  internalHistory:[],
+  internalHistory:[], topVentActual:'grand-ouvert',
   fireAlert:{ peak:null, targetReached:false, alerting:false } };
 
 async function pilotStart(cook){
@@ -1345,11 +1364,15 @@ async function pilotStart(cook){
   pilot.tau = TAU_MINUTES[cook.config] || 9;
   pilot.lastPredTime = null; pilot.lastPredTemp = null;
   pilot.currentTargetPercent = 100; pilot.currentTargetPosition = 4; pilot.previousPosition = 4;
+  pilot.topVentActual = 'grand-ouvert';
   pilot.fireAlert = { peak:null, targetReached:false, alerting:false };
   els('pilotPanel').style.display = 'block';
+  els('pilotActualBottom').value = 4;
+  els('pilotActualTop').value = 'grand-ouvert';
   els('pilotRampNote').textContent = "Montée en cours — mesure du rythme en cours, patiente quelques relevés.";
   els('pilotPredictNote').textContent = ''; els('pilotCompareNote').textContent = '';
   pilotRenderVentWidget();
+  pilotRenderTopVentWidget(null, cook);
   pilotRenderPhase();
   pilotRenderChart(cook);
   pilotRenderMilestone(cook, null);
@@ -1372,9 +1395,29 @@ function pilotRenderVentWidget(){
   else if(cur < prev - 0.01){ arrow = '▼'; word = 'Réduis au'; color = 'var(--red)'; }
   else { word = 'Garde le'; }
   el.innerHTML = '<div style="text-align:center;padding:10px 0;">' +
-    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">Aération basse — action</div>' +
+    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">Aération basse — recommandation</div>' +
     '<div style="font-size:34px;font-weight:700;color:'+color+';margin:4px 0;">' + arrow + ' ' + cur + '</div>' +
     '<div style="font-size:13px;color:var(--text-dim);">' + word + ' cran ' + cur + ' (' + pilot.currentTargetPercent.toFixed(0) + '% ouvert)</div>' +
+    '</div>';
+}
+// Aération haute : reste grande ouverte par défaut (bonne combustion/évacuation de fumée).
+// Ne se referme partiellement que si la température dépasse largement la cible ALORS QUE
+// l'aération basse est déjà quasi fermée — signe que la basse seule ne suffit plus à freiner.
+function pilotTopVentRecommendation(ambientTemp, cook){
+  const excess = ambientTemp - cook.targetTemp;
+  const tol = settings.tolerance;
+  const bottomNearMin = pilot.currentTargetPosition != null && pilot.currentTargetPosition <= 1.5;
+  if(bottomNearMin && excess > 4*tol) return {level:'presque-ferme', label:'Presque fermée', color:'var(--red)'};
+  if(bottomNearMin && excess > 2*tol) return {level:'mi-ouvert', label:'Mi-ouverte', color:'var(--gold)'};
+  return {level:'grand-ouvert', label:'Grande ouverte', color:'var(--good)'};
+}
+function pilotRenderTopVentWidget(ambientTemp, cook){
+  const rec = ambientTemp!=null ? pilotTopVentRecommendation(ambientTemp, cook) : {level:'grand-ouvert', label:'Grande ouverte', color:'var(--good)'};
+  const el = els('pilotTopVentWidget');
+  el.innerHTML = '<div style="text-align:center;padding:10px 0;">' +
+    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">Aération haute — recommandation</div>' +
+    '<div style="font-size:20px;font-weight:700;color:'+rec.color+';margin:4px 0;">' + rec.label + '</div>' +
+    (rec.level!=='grand-ouvert' ? '<div style="font-size:12px;color:var(--text-dim);">Basse déjà quasi fermée et écart important avec la cible — freine via la haute en renfort.</div>' : '<div style="font-size:12px;color:var(--text-dim);">Reste grande ouverte sauf emballement de température.</div>') +
     '</div>';
 }
 function pilotSlope(){
@@ -1393,7 +1436,8 @@ function pilotSlopeOf(buffer, minWindowMin){
   return (last.temp-first.temp)/dtMin;
 }
 function pilotRenderChart(cook){
-  els('pilotChart').innerHTML = svgTempChart(pilot.chartHistory, cook.targetTemp, settings.tolerance);
+  els('pilotChart').innerHTML = svgTempChart(pilot.chartHistory, cook.targetTemp, settings.tolerance,
+    { teqPoints: pilot.teqPoints, percent: pilot.currentTargetPercent, tau: pilot.tau });
 }
 function pilotMilestoneInfo(cook, internalTemp){
   const food = findFoodItem(cook.foodKey);
@@ -1436,8 +1480,26 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
   }
   meaterEvaluateFireAlert(ambientTemp, cook);
   pilotRenderChart(cook);
+  pilotRenderTopVentWidget(ambientTemp, cook);
 
   if(pilot.phase === 'ramp'){
+    // Démarrage en cours de cuisson : si l'ambiance est déjà proche ou au-dessus de la
+    // cible, il n'y a pas de pente de montée à attendre (elle est peut-être nulle ou même
+    // négative) — bascule immédiate sur le pilotage de stabilisation plutôt que de rester
+    // bloqué à attendre une montée qui n'arrivera pas.
+    if(ambientTemp >= cook.targetTemp - settings.tolerance){
+      pilot.phase = 'stabilizing';
+      pilot.previousPosition = pilot.currentTargetPosition;
+      pilot.currentTargetPercent = cook.percentUsed;
+      pilot.currentTargetPosition = cook.positionUsed;
+      pilot.lastPredTime = now; pilot.lastPredTemp = null;
+      pilot.history = [];
+      els('pilotRampNote').textContent = '';
+      els('pilotCompareNote').textContent = 'Cuisson déjà en cours, température proche ou au-dessus de la cible — bascule immédiate sur le pilotage de stabilisation.';
+      pilotRenderVentWidget();
+      pilotRenderPhase();
+      return;
+    }
     const slope = pilotSlope();
     if(slope && slope>0.1){
       const remaining = (cook.targetTemp - ambientTemp)/slope;
@@ -1453,6 +1515,8 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
       } else if(remaining > 0){
         els('pilotRampNote').textContent = 'Encore ~' + Math.round(remaining) + ' min avant la cible au rythme actuel (+' + slope.toFixed(1) + '°C/min). Garde le cran 4/4.';
       }
+    } else {
+      els('pilotRampNote').textContent = "Montée en cours — mesure du rythme en cours, patiente quelques relevés.";
     }
     pilotRenderVentWidget();
     pilotRenderPhase();
@@ -1488,17 +1552,44 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
   pilotRenderPhase();
 }
 
-// ===================== GRAPHIQUE DE STABILITÉ (SVG) =====================
-function svgTempChart(history, targetTemp, tolerance){
+els('pilotActualBottom').addEventListener('change', () => {
+  const v = parseFloat(els('pilotActualBottom').value);
+  if(isNaN(v) || !pilot.active) return;
+  const clamped = Math.max(1, Math.min(settings.maxPosition, v));
+  pilot.previousPosition = clamped;
+  pilot.currentTargetPosition = clamped;
+  pilot.currentTargetPercent = positionToPercent(clamped);
+  pilot.lastPredTemp = null; pilot.lastPredTime = null;
+  pilotRenderVentWidget();
+});
+els('pilotActualTop').addEventListener('change', () => {
+  pilot.topVentActual = els('pilotActualTop').value;
+});
+
+// ===================== GRAPHIQUE DE STABILITÉ (SVG) — prédictif =====================
+function svgTempChart(history, targetTemp, tolerance, predictModel){
   const W=320, H=140, padL=34, padR=10, padT=10, padB=22;
   if(!history || history.length<2){
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}"><text x="${W/2}" y="${H/2}" fill="#9a9a9a" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">En attente de données…</text></svg>`;
   }
   const t0 = history[0].t;
-  const temps = history.map(p=>p.temp).concat([targetTemp]);
-  let tMin = Math.min(...temps)-4, tMax = Math.max(...temps)+4;
+  const lastPoint = history[history.length-1];
+  const horizonMin = 15, steps = 6;
+  let predPts = [];
+  if(predictModel && predictModel.teqPoints){
+    const Teq = interpolateTeq(predictModel.teqPoints, predictModel.percent);
+    if(Teq != null){
+      for(let i=0;i<=steps;i++){
+        const dm = horizonMin*i/steps;
+        predPts.push({ m: (lastPoint.t-t0)/60000 + dm, temp: predictTemp(lastPoint.temp, Teq, predictModel.tau, dm) });
+      }
+    }
+  }
+  const allTemps = history.map(p=>p.temp).concat([targetTemp]).concat(predPts.map(p=>p.temp));
+  let tMin = Math.min(...allTemps)-4, tMax = Math.max(...allTemps)+4;
   if(tMax-tMin < 8){ const mid=(tMax+tMin)/2; tMin=mid-4; tMax=mid+4; }
-  const xMax = Math.max(1, (history[history.length-1].t - t0)/60000);
+  const xMaxData = (lastPoint.t - t0)/60000;
+  const xMax = Math.max(1, predPts.length ? predPts[predPts.length-1].m : xMaxData);
   const x = m => padL + (m/xMax) * (W-padL-padR);
   const y = temp => padT + (1 - (temp-tMin)/(tMax-tMin)) * (H-padT-padB);
 
@@ -1507,8 +1598,14 @@ function svgTempChart(history, targetTemp, tolerance){
     return (i===0?'M':'L') + xx.toFixed(1) + ' ' + yy.toFixed(1);
   }).join(' ');
 
+  let predPath = '';
+  if(predPts.length){
+    predPath = predPts.map((p,i) => (i===0?'M':'L') + x(p.m).toFixed(1) + ' ' + y(p.temp).toFixed(1)).join(' ');
+  }
+
   const yTarget = y(targetTemp);
   const yTolTop = y(targetTemp+tolerance), yTolBot = y(targetTemp-tolerance);
+  const xSplit = x(xMaxData);
 
   let yTicks = '';
   for(let i=0;i<=2;i++){
@@ -1522,7 +1619,10 @@ function svgTempChart(history, targetTemp, tolerance){
     <line x1="${padL}" y1="${yTarget.toFixed(1)}" x2="${W-padR}" y2="${yTarget.toFixed(1)}" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="4 3"/>
     <text x="${W-padR}" y="${(yTarget-4).toFixed(1)}" fill="var(--gold)" font-size="9" text-anchor="end" font-family="Inter,sans-serif">cible ${targetTemp}°C</text>
     ${yTicks}
+    <line x1="${xSplit.toFixed(1)}" y1="${padT}" x2="${xSplit.toFixed(1)}" y2="${H-padB}" stroke="#333" stroke-width="1" stroke-dasharray="2 3"/>
+    <path d="${predPath}" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round"/>
     <path d="${path}" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="${(xSplit+2).toFixed(1)}" y="${padT+9}" fill="#9a9a9a" font-size="8" font-family="Inter,sans-serif">prévision</text>
   </svg>`;
 }
 
@@ -1545,7 +1645,7 @@ async function init(){
       activeCookId = active.cookId;
       activeCookData = cookDoc;
       showActiveCook();
-      if(CONFIGS[cookDoc.config] && !CONFIGS[cookDoc.config].isBasket) pilotStart(activeCookData);
+      if(CONFIGS[cookDoc.config]) pilotStart(activeCookData);
     }
   }
 
