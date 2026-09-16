@@ -449,17 +449,18 @@
   <div class="screen" id="screen-meater">
     <div class="card" id="meaterLoginCard">
       <h2>Connexion MEATER</h2>
-      <div class="note" style="margin-top:0;">
+      <div class="note" style="margin-top:0;background:var(--bg-elev2);padding:8px 10px;border-radius:8px;color:var(--text);font-weight:600;" id="meaterLoginForProfile"></div>
+      <div class="note">
         Connecte ton compte MEATER Cloud pour piloter ta cuisson en direct depuis l'onglet Cuisson.
-        Tes identifiants sont envoyés uniquement à l'API officielle MEATER (public-api.cloud.meater.com) ; le jeton de connexion reste stocké seulement sur cet appareil.
+        Tes identifiants sont envoyés uniquement à l'API officielle MEATER (public-api.cloud.meater.com) ; le jeton de connexion reste stocké seulement sur cet appareil, et uniquement pour ce profil.
       </div>
       <div class="field">
         <label>Email MEATER</label>
-        <input type="email" id="meaterEmail" autocomplete="email">
+        <input type="email" id="meaterEmail" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Mot de passe</label>
-        <input type="password" id="meaterPassword" autocomplete="current-password">
+        <input type="password" id="meaterPassword" autocomplete="off">
       </div>
       <button class="btn btn-primary" id="btnMeaterLogin">Se connecter</button>
       <div class="note" id="meaterLoginNote"></div>
@@ -1523,6 +1524,11 @@ els('btnMeaterLogin').addEventListener('click', async () => {
   const email = els('meaterEmail').value.trim();
   const password = els('meaterPassword').value;
   if(!email || !password){ els('meaterLoginNote').textContent = 'Renseigne ton email et ton mot de passe MEATER.'; return; }
+  const collision = spCheckEmailCollision(email);
+  if(collision){
+    const proceed = confirm('Cet email MEATER est déjà utilisé par le profil « ' + collision.name + ' ».\n\nSi tu ne voulais pas connecter ce compte ici, annule et vérifie que tu es bien sur le bon profil Snake Pilot.\n\nContinuer quand même ?');
+    if(!proceed) return;
+  }
   els('btnMeaterLogin').disabled = true;
   els('meaterLoginNote').textContent = 'Connexion en cours…';
   try{
@@ -1530,6 +1536,7 @@ els('btnMeaterLogin').addEventListener('click', async () => {
     data.email = email;
     meaterAuth = data;
     await store.setDoc('meater/auth', data);
+    spRecordUserMeaterEmail(email);
     els('meaterLoginCard').style.display = 'none';
     els('meaterMonitorCard').style.display = 'block';
     els('meaterLoginNote').textContent = '';
@@ -2456,6 +2463,20 @@ function updateActiveAccountBadge(){
   const name = u ? u.name : 'Moi';
   const email = (meaterAuth && meaterAuth.email) ? meaterAuth.email : 'MEATER non connecté';
   els('activeAccountBadge').innerHTML = name + '<br>' + email;
+  const el = els('meaterLoginForProfile');
+  if(el) el.textContent = 'Connexion pour le profil : ' + name;
+}
+// Détecte si l'email MEATER saisi est déjà utilisé par un AUTRE profil Snake Pilot —
+// signe probable d'une erreur de profil plutôt que d'un vrai partage de compte voulu.
+function spCheckEmailCollision(email){
+  const users = spLoadUsers();
+  const other = users.find(u => u.id!==currentUserId && u.meaterEmail && u.meaterEmail.toLowerCase()===email.toLowerCase());
+  return other || null;
+}
+function spRecordUserMeaterEmail(email){
+  const users = spLoadUsers();
+  const u = users.find(x=>x.id===currentUserId);
+  if(u){ u.meaterEmail = email; spSaveUsers(users); }
 }
 async function spRequestSwitch(userId){
   const users = spLoadUsers();
