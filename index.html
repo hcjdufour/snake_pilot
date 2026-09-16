@@ -118,6 +118,7 @@
   .tab .ic{font-size:19px;display:block;}
   .tab-label{font-size:10px;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;}
   .screen{display:none;padding-top:4px;}
+  #screen-tracking{max-height:calc(100vh - 100px);overflow-y:auto;}
   .screen.active{display:block;}
   .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;}
   .badge-good{background:rgba(76,175,80,0.15);color:var(--good);}
@@ -154,6 +155,17 @@
       <div class="note center" id="activeCookInfo"></div>
       <div style="height:12px;"></div>
       <button class="btn btn-primary" id="btnFinishCook">Terminer &amp; enregistrer le résultat</button>
+    </div>
+
+    <div class="card" id="pilotPerturbBox" style="display:none;border:2px solid var(--gold);">
+      <h2 style="color:var(--gold);">⏸️ Chute de température détectée</h2>
+      <div class="note" style="margin-top:0;color:var(--text);" id="pilotPerturbText"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+        <button class="btn btn-ghost" id="btnPerturbLid" style="border-color:var(--gold);">Couvercle ouvert</button>
+        <button class="btn btn-ghost" id="btnPerturbMeat" style="border-color:var(--gold);">Viande retirée</button>
+        <button class="btn btn-ghost" id="btnPerturbFuel" style="border-color:var(--gold);">Combustible ajusté</button>
+        <button class="btn btn-ghost" id="btnPerturbNo" style="border-color:var(--border);">Non, c'est le feu</button>
+      </div>
     </div>
 
     <div class="card" id="meaterAlertBanner" style="display:none;border:2px solid var(--red);">
@@ -194,6 +206,7 @@
       <div class="note" id="pilotCompareNote"></div>
       <div class="divider"></div>
       <div class="note" style="margin-top:0;font-weight:600;color:var(--text);" id="pilotMilestoneNote"></div>
+      <div class="note" style="font-size:11px;" id="pilotActionLogNote"></div>
     </div>
 
     <div id="setupBlock">
@@ -437,6 +450,53 @@
     </div>
   </div>
 
+  <div class="screen" id="screen-tracking">
+    <div id="trackWrap" style="display:none;flex-direction:column;gap:6px;">
+      <div id="trackAlertStrip"></div>
+      <div id="trackPerturbStrip"></div>
+
+      <div style="display:flex;gap:6px;">
+        <div style="flex:1;background:var(--bg-elev2);border-radius:10px;padding:6px 4px;text-align:center;">
+          <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Interne</div>
+          <div style="font-size:21px;font-weight:700;color:#e05fd0;line-height:1.2;" id="trackInternalVal">--°</div>
+          <div style="font-size:8px;color:var(--text-dim);" id="trackInternalTrend"></div>
+        </div>
+        <div style="flex:1;background:var(--bg-elev2);border-radius:10px;padding:6px 4px;text-align:center;">
+          <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Ambiante</div>
+          <div style="font-size:21px;font-weight:700;color:var(--good);line-height:1.2;" id="trackAmbientVal">--°</div>
+          <div style="font-size:8px;color:var(--text-dim);" id="trackAmbientTrend"></div>
+        </div>
+        <div style="flex:1;background:var(--bg-elev2);border-radius:10px;padding:6px 4px;text-align:center;">
+          <div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;">Cible</div>
+          <div style="font-size:21px;font-weight:700;color:var(--gold);line-height:1.2;" id="trackTargetVal">--°</div>
+        </div>
+      </div>
+
+      <div id="trackChart" style="line-height:0;"></div>
+
+      <div style="display:flex;gap:6px;">
+        <div style="flex:1;background:var(--bg-elev2);border-radius:8px;padding:5px 8px;">
+          <div style="font-size:8px;color:var(--text-dim);">AÉRATION RECOMMANDÉE</div>
+          <div style="font-size:16px;font-weight:700;" id="trackVentReco">--</div>
+        </div>
+        <div style="flex:1;background:var(--bg-elev2);border-radius:8px;padding:5px 8px;">
+          <div style="font-size:8px;color:var(--text-dim);">DÉCLARÉE PAR TOI</div>
+          <div style="font-size:16px;font-weight:700;" id="trackVentActual">--</div>
+        </div>
+      </div>
+
+      <div style="background:var(--bg-elev2);border-radius:10px;padding:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--red);" id="trackStepName"></div>
+        <div style="font-size:10.5px;color:var(--text-dim);margin-top:2px;" id="trackStepObjective"></div>
+        <div style="font-size:10.5px;color:var(--text);margin-top:2px;" id="trackStepActions"></div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:4px;">Suivant : <span id="trackStepNext"></span></div>
+      </div>
+
+      <div style="font-size:9px;color:var(--text-dim);text-align:center;" id="trackMeta"></div>
+    </div>
+    <div class="note" style="margin-top:10px;text-align:center;" id="trackEmptyNote">Aucune cuisson active — démarre une cuisson avec MEATER connecté pour voir le suivi ici.</div>
+  </div>
+
 </div>
 
 <div class="tabbar">
@@ -445,6 +505,7 @@
   <div class="tab" data-tab="history"><span class="ic">📋</span><span class="tab-label">Historique</span></div>
   <div class="tab" data-tab="settings"><span class="ic">⚙️</span><span class="tab-label">Réglages</span></div>
   <div class="tab" data-tab="meater"><span class="ic">🌡️</span><span class="tab-label">MEATER</span></div>
+  <div class="tab" data-tab="tracking"><span class="ic">📡</span><span class="tab-label">Suivi</span></div>
 </div>
 
 <script>
@@ -653,8 +714,15 @@ async function computeRecommendation(temp, duration, manualConfig){
   const config = (manualConfig && manualConfig!=='auto') ? manualConfig : pickAutoConfig(temp, duration);
   const bandIdx = bandIndexFor(temp);
   const calib = await getCalibBucket(config, bandIdx);
-  const percent = calib.percent;
-  const position = roundToIncrement(percentToPosition(percent));
+  let percent = calib.percent;
+  let position = roundToIncrement(percentToPosition(percent));
+  if(!CONFIGS[config].isBasket){
+    const flooredPosition = safeDurablePosition(position);
+    if(flooredPosition !== position){
+      position = flooredPosition;
+      percent = positionToPercent(position);
+    }
+  }
   const stars = computeStars(calib.testCount, calib.streak);
   if(config === 'panier'){
     return {config, bandIdx, percent, position, maillons:0, briquettes:11, burnRate:0, stars, calib};
@@ -1385,8 +1453,10 @@ const PILOT_STABILIZE_INTERVAL_MIN = 3;
 const PILOT_CHART_MAX_POINTS = 120;
 let pilot = { active:false, phase:null, teqPoints:null, tau:null, history:[], chartHistory:[],
   lastPredTime:null, lastPredTemp:null, currentTargetPercent:null, currentTargetPosition:null, previousPosition:null,
-  internalHistory:[], topVentActual:'grand-ouvert',
-  fireAlert:{ peak:null, targetReached:false, alerting:false } };
+  internalHistory:[], topVentActual:100, emergencyClose:null, emergencyCooldownUntil:null,
+  fireAlert:{ peak:null, targetReached:false, alerting:false },
+  perturbation:{ status:'none', tier:null, detectedAt:null, preTemp:null, minTemp:null, reason:null, recoveringSince:null },
+  perturbedPeriods:[], actionLog:[], userDeclaredPosition:4 };
 
 async function pilotStart(cook){
   pilot.active = true;
@@ -1397,8 +1467,17 @@ async function pilotStart(cook){
   pilot.lastPredTime = null; pilot.lastPredTemp = null;
   pilot.currentTargetPercent = 100; pilot.currentTargetPosition = 4; pilot.previousPosition = 4;
   pilot.topVentActual = 100;
+  pilot.emergencyClose = null;
+  pilot.emergencyCooldownUntil = null;
+  pilot.perturbation = { status:'none', tier:null, detectedAt:null, preTemp:null, minTemp:null, reason:null, recoveringSince:null };
+  pilot.perturbedPeriods = [];
+  pilot.actionLog = [];
+  pilot.userDeclaredPosition = 4;
+  els('pilotPerturbBox').style.display = 'none';
   pilot.fireAlert = { peak:null, targetReached:false, alerting:false };
   els('pilotPanel').style.display = 'block';
+  els('trackWrap').style.display = 'flex';
+  els('trackEmptyNote').style.display = 'none';
   els('pilotActualBottom').value = 4;
   els('pilotActualBottomVal').textContent = '4';
   els('pilotActualTop').value = 100;
@@ -1411,10 +1490,13 @@ async function pilotStart(cook){
   pilotRenderPhase();
   pilotRenderChart(cook);
   pilotRenderMilestone(cook, null);
+  pilotRenderTracking(cook, null, null);
 }
 function pilotStop(){
   pilot.active = false;
   els('pilotPanel').style.display = 'none';
+  els('trackWrap').style.display = 'none';
+  els('trackEmptyNote').style.display = 'block';
   meaterStopFireAlert();
 }
 function pilotRenderPhase(){
@@ -1425,14 +1507,16 @@ function pilotRenderVentWidget(){
   const el = els('pilotVentWidget');
   if(pilot.currentTargetPosition == null){ el.innerHTML = ''; return; }
   const prev = pilot.previousPosition, cur = pilot.currentTargetPosition;
+  const isEmergency = pilot.emergencyClose && pilot.emergencyClose.active;
   let arrow = '→', word = 'Garde', color = 'var(--text)';
   if(cur > prev + 0.01){ arrow = '▲'; word = 'Augmente au'; color = 'var(--gold)'; }
   else if(cur < prev - 0.01){ arrow = '▼'; word = 'Réduis au'; color = 'var(--red)'; }
   else { word = 'Garde le'; }
+  if(isEmergency){ color = 'var(--red)'; }
   el.innerHTML = '<div style="text-align:center;padding:10px 0;">' +
-    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">Aération basse — recommandation</div>' +
+    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">Aération basse — recommandation' + (isEmergency ? ' — ⚠️ TEMPORAIRE' : '') + '</div>' +
     '<div style="font-size:34px;font-weight:700;color:'+color+';margin:4px 0;">' + arrow + ' ' + cur + '</div>' +
-    '<div style="font-size:13px;color:var(--text-dim);">' + word + ' cran ' + cur + ' (' + pilot.currentTargetPercent.toFixed(0) + '% ouvert)</div>' +
+    '<div style="font-size:13px;color:var(--text-dim);">' + word + ' cran ' + cur + ' (' + pilot.currentTargetPercent.toFixed(0) + '% ouvert)' + (isEmergency ? ' — réouverture automatique bientôt' : '') + '</div>' +
     '</div>';
 }
 // Aération haute : reste grande ouverte par défaut (bonne combustion/évacuation de fumée).
@@ -1488,8 +1572,23 @@ function pilotSlopeOf(buffer, minWindowMin){
 }
 function pilotRenderChart(cook){
   const slopeNow = pilotRecentSlope(pilot.chartHistory, 4);
-  els('pilotChart').innerHTML = svgTempChart(pilot.chartHistory, cook.targetTemp, settings.tolerance,
-    { teqPoints: pilot.teqPoints, percent: pilot.currentTargetPercent, tau: pilot.tau, slopeNow, deadTime: pilot.tau*0.5 });
+  const deadTime = pilot.tau*0.5;
+  const Teq = interpolateTeq(pilot.teqPoints, pilot.currentTargetPercent);
+  let predPts = null;
+  if(Teq != null && pilot.chartHistory.length){
+    const last = pilot.chartHistory[pilot.chartHistory.length-1];
+    predPts = [];
+    for(let i=0;i<=10;i++){
+      const dm = 20*i/10;
+      predPts.push({ m: (last.t-pilot.chartHistory[0].t)/60000 + dm, temp: predictTempInertial(last.temp, slopeNow, Teq, pilot.tau, dm, deadTime) });
+    }
+  }
+  const lastInternal = pilot.internalHistory.length ? pilot.internalHistory[pilot.internalHistory.length-1].temp : null;
+  const milestone = pilotMilestoneInfo(cook, lastInternal);
+  const targetInternal = milestone.type !== 'duration' ? milestone.targetC : null;
+  const svg = svgCookChart(pilot.chartHistory, pilot.internalHistory, cook.targetTemp, targetInternal, settings.tolerance, pilot.actionLog, pilot.perturbedPeriods, predPts);
+  els('pilotChart').innerHTML = svg;
+  els('trackChart').innerHTML = svg;
 }
 function pilotMilestoneInfo(cook, internalTemp){
   const food = findFoodItem(cook.foodKey);
@@ -1518,6 +1617,257 @@ function pilotRenderMilestone(cook, internalTemp){
     el.textContent = 'Palier suivant : ' + label + ' — encore ~' + Math.max(0,Math.round(remainingMin)) + ' min au rythme actuel (+' + slope.toFixed(2) + '°C/min à cœur). Estimation qui se met à jour en direct.';
   }
 }
+function pilotAcceleration(chartHistory, windowMin){
+  if(!chartHistory || chartHistory.length<3) return null;
+  const last = chartHistory[chartHistory.length-1];
+  const cutoff = last.t - windowMin*60000;
+  const pts = chartHistory.filter(p=>p.t>=cutoff);
+  if(pts.length<3) return null;
+  const mid = pts[Math.floor(pts.length/2)];
+  const dt1 = (mid.t-pts[0].t)/60000, dt2 = (last.t-mid.t)/60000;
+  if(dt1<0.3 || dt2<0.3) return null;
+  const slope1 = (mid.temp-pts[0].temp)/dt1;
+  const slope2 = (last.temp-mid.temp)/dt2;
+  return slope2-slope1; // négatif = ralentissement de la hausse (ou accélération de la baisse)
+}
+// Le cran 1 (0% d'aération) peut étouffer le foyer : il ne doit jamais être proposé comme
+// réglage durable. Plancher de sécurité à 1,5 pour toute recommandation "stable".
+function safeDurablePosition(rawPosition){
+  return Math.max(1.5, rawPosition);
+}
+// ===================== DÉTECTION OUVERTURE COUVERCLE / RETRAIT VIANDE =====================
+// Une chute brutale et rapide de l'ambiance n'indique pas forcément un foyer qui faiblit :
+// ça peut être le couvercle ouvert ou la viande sortie un instant (ex. étape d'emballage).
+// On distingue par la VITESSE et l'AMPLEUR de la chute — un vrai foyer ne peut pas perdre
+// autant de degrés aussi vite, contraint par l'inertie thermique (τ) déjà modélisée.
+const PERTURB_TIER_A_RATE = 15;   // °C/min — quasi certain (couvercle/viande), on demande tout de suite
+const PERTURB_TIER_B_RATE = 6;    // °C/min — à surveiller avant de demander
+const PERTURB_RECOVERY_MARGIN = 4; // °C — écart à la valeur d'avant-chute considéré comme "revenu à la normale"
+const PERTURB_WATCH_MAX_MIN = 2;   // au-delà sans avoir récupéré, on pose la question
+const PERTURB_NO_ANSWER_TIMEOUT_MIN = 5; // sans réponse et toujours bas, on tranche par sécurité
+
+function pilotDetectDropRate(chartHistory){
+  if(!chartHistory || chartHistory.length<2) return null;
+  const last = chartHistory[chartHistory.length-1];
+  const prev = chartHistory[chartHistory.length-2];
+  const dtMin = (last.t-prev.t)/60000;
+  if(dtMin<=0 || dtMin>2) return null;
+  return (prev.temp-last.temp)/dtMin; // positif si ça baisse
+}
+function pilotRenderPerturbQuestion(certain){
+  els('pilotPerturbBox').style.display = 'block';
+  els('pilotPerturbText').textContent = certain
+    ? "Chute brutale et importante de la température d'ambiance — probablement une ouverture du couvercle ou un retrait de la viande."
+    : "La température a baissé et ne remonte pas — était-ce une vérification rapide ?";
+  els('pilotPerturbBox').scrollIntoView({behavior:'smooth'});
+}
+function pilotResolvePerturbation(how){
+  const p = pilot.perturbation;
+  els('pilotPerturbBox').style.display = 'none';
+  if(how === 'user-denied'){
+    p.status='none'; p.tier=null; p.detectedAt=null; p.preTemp=null; p.minTemp=null; p.reason=null;
+    els('pilotCompareNote').textContent = "Pris en compte : traité comme un vrai signe du foyer, pilotage normal repris immédiatement.";
+    return;
+  }
+  pilot.perturbedPeriods.push({start:p.detectedAt, end:Date.now(), reason:p.reason||'auto', how});
+  if(how === 'timeout-assume-real'){
+    p.status='none'; p.tier=null; p.detectedAt=null; p.preTemp=null; p.minTemp=null; p.reason=null;
+    els('pilotCompareNote').textContent = "Pas de réponse et température toujours basse — traité par sécurité comme un vrai problème de foyer, pilotage repris.";
+    return;
+  }
+  p.status = 'recovering'; p.recoveringSince = Date.now();
+  els('pilotCompareNote').textContent = "Période notée comme perturbée (exclue de l'apprentissage) — en attente du retour à la normale avant de reprendre les recommandations.";
+}
+function pilotAnswerPerturb(reason){
+  const p = pilot.perturbation;
+  if(reason === 'non'){ pilotResolvePerturbation('user-denied'); return; }
+  p.reason = reason;
+  pilotResolvePerturbation('user-confirmed');
+}
+// Retourne true si pilotEvaluate doit s'arrêter là (pas de correction/alerte ce cycle).
+function pilotHandlePerturbation(ambientTemp, now){
+  const p = pilot.perturbation;
+  const rate = pilotDetectDropRate(pilot.chartHistory);
+
+  if(p.status === 'none'){
+    if(rate != null && rate >= PERTURB_TIER_A_RATE){
+      const prevT = pilot.chartHistory[pilot.chartHistory.length-2].temp;
+      p.status='asking'; p.tier='A'; p.detectedAt=now; p.preTemp=prevT; p.minTemp=ambientTemp;
+      pilotRenderPerturbQuestion(true);
+      return true;
+    }
+    if(rate != null && rate >= PERTURB_TIER_B_RATE){
+      const prevT = pilot.chartHistory[pilot.chartHistory.length-2].temp;
+      p.status='watching'; p.tier='B'; p.detectedAt=now; p.preTemp=prevT; p.minTemp=ambientTemp;
+      return false; // on continue le pilotage normal pendant qu'on observe une petite baisse
+    }
+    return false;
+  }
+
+  if(p.status === 'watching'){
+    p.minTemp = Math.min(p.minTemp, ambientTemp);
+    const recovered = ambientTemp >= p.preTemp - PERTURB_RECOVERY_MARGIN;
+    const elapsedMin = (now-p.detectedAt)/60000;
+    if(recovered){
+      p.status='none'; p.tier=null; p.detectedAt=null; p.preTemp=null; p.minTemp=null;
+      return false;
+    }
+    if(elapsedMin >= PERTURB_WATCH_MAX_MIN){
+      p.status='asking';
+      pilotRenderPerturbQuestion(false);
+      return true;
+    }
+    return false;
+  }
+
+  if(p.status === 'asking'){
+    p.minTemp = Math.min(p.minTemp, ambientTemp);
+    const elapsedMin = (now-p.detectedAt)/60000;
+    const recovered = ambientTemp >= p.preTemp - PERTURB_RECOVERY_MARGIN;
+    if(recovered){ pilotResolvePerturbation('auto-recovered'); return pilot.perturbation.status!=='none'; }
+    if(elapsedMin >= PERTURB_NO_ANSWER_TIMEOUT_MIN){ pilotResolvePerturbation('timeout-assume-real'); return pilot.perturbation.status!=='none'; }
+    return true;
+  }
+
+  if(p.status === 'recovering'){
+    const elapsedMin = (now-p.recoveringSince)/60000;
+    const stable = Math.abs(ambientTemp - p.preTemp) <= PERTURB_RECOVERY_MARGIN;
+    if(stable && elapsedMin >= 1){
+      p.status='none'; p.tier=null; p.detectedAt=null; p.preTemp=null; p.minTemp=null; p.recoveringSince=null;
+      els('pilotCompareNote').textContent = 'Température revenue à la normale — reprise du pilotage habituel.';
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+els('btnPerturbLid').addEventListener('click', () => pilotAnswerPerturb('couvercle'));
+els('btnPerturbMeat').addEventListener('click', () => pilotAnswerPerturb('viande'));
+els('btnPerturbFuel').addEventListener('click', () => pilotAnswerPerturb('combustible'));
+els('btnPerturbNo').addEventListener('click', () => pilotAnswerPerturb('non'));
+
+// ===================== JOURNAL D'EFFET DES RÉGLAGES =====================
+// Chaque changement de réglage (recommandé ou appliqué manuellement par l'utilisateur) est
+// horodaté ; son effet réel est mesuré à 5/10/15/20 min. Base pour calibrer l'algorithme sur
+// le comportement réel de CE Weber dans les conditions du jour. Une fenêtre qui chevauche une
+// période perturbée (couvercle/viande, cf. détection ci-dessus) est marquée "disturbed" et ne
+// doit jamais servir à l'apprentissage.
+function pilotLogAction(source, prevPosition, newPosition, prevPercent, newPercent, tempAtAction, trendBeforeAction){
+  const entry = {
+    id: 'act_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    timestamp: Date.now(),
+    source, prevPosition, newPosition, prevPercent, newPercent, tempAtAction,
+    trendBeforeAction: trendBeforeAction==null ? null : Math.round(trendBeforeAction*100)/100,
+    effect: { delayMin:null, at5:null, at10:null, at15:null, at20:null, disturbed:false, complete:false }
+  };
+  pilot.actionLog.push(entry);
+  return entry;
+}
+function pilotIsWindowDisturbed(startMs, endMs){
+  return pilot.perturbedPeriods.some(p => p.start < endMs && p.end > startMs);
+}
+function pilotUpdateActionEffects(ambientTemp, now, cook){
+  const marks = [5,10,15,20];
+  for(const entry of pilot.actionLog){
+    if(entry.effect.complete) continue;
+    const elapsedMin = (now - entry.timestamp)/60000;
+    if(entry.effect.delayMin == null){
+      const expectSign = entry.newPosition > entry.prevPosition ? 1 : (entry.newPosition < entry.prevPosition ? -1 : 0);
+      const delta = ambientTemp - entry.tempAtAction;
+      if(expectSign !== 0 && Math.sign(delta) === expectSign && Math.abs(delta) >= 1){
+        entry.effect.delayMin = Math.round(elapsedMin*10)/10;
+      }
+    }
+    for(const m of marks){
+      const key = 'at'+m;
+      if(entry.effect[key]==null && elapsedMin >= m){
+        entry.effect[key] = Math.round((ambientTemp - entry.tempAtAction)*10)/10;
+        if(pilotIsWindowDisturbed(entry.timestamp, entry.timestamp+m*60000)) entry.effect.disturbed = true;
+      }
+    }
+    if(entry.effect.at20 != null && !entry.effect.complete){
+      entry.effect.complete = true;
+      store.addDoc('actionEffects', Object.assign({cookId:activeCookId||null, config:cook.config, targetTemp:cook.targetTemp}, entry)).catch(()=>{});
+    }
+  }
+  els('pilotActionLogNote').textContent = pilot.actionLog.length
+    ? pilot.actionLog.length + ' réglage(s) enregistré(s) cette cuisson — ' + pilot.actionLog.filter(e=>e.effect.complete).length + ' mesure(s) d\'effet complète(s)' + (pilot.actionLog.some(e=>e.effect.disturbed) ? ' (dont des périodes perturbées exclues)' : '') + '.'
+    : '';
+}
+// ===================== ÉTAPE DE RECETTE EN COURS =====================
+function pilotCurrentStep(cook, internalTemp){
+  const food = findFoodItem(cook.foodKey);
+  if(pilot.phase === 'ramp'){
+    return {
+      name: 'Montée en température',
+      objective: 'Amener le barbecue à ' + cook.targetTemp + '°C',
+      actions: "Aération basse au cran 4/4, laisser le foyer s'établir",
+      next: food && food.wrapTempC!=null ? "Cuisson jusqu'à l'emballage" : (food && food.pullTempC!=null ? "Cuisson jusqu'à la température finale" : 'Stabilisation')
+    };
+  }
+  if(food && food.wrapTempC!=null && internalTemp!=null && internalTemp<food.wrapTempC){
+    return {
+      name: 'Cuisson — avant emballage',
+      objective: 'Atteindre ' + food.wrapTempC + '°C à cœur',
+      actions: "Suis les recommandations d'aération ci-dessus",
+      next: 'Emballage puis cuisson jusqu\'à ' + food.pullTempC + '°C à cœur'
+    };
+  }
+  if(food && food.pullTempC!=null && internalTemp!=null && internalTemp<food.pullTempC){
+    const wrapped = food.wrapTempC!=null;
+    return {
+      name: wrapped ? 'Cuisson — après emballage' : 'Cuisson',
+      objective: 'Atteindre ' + food.pullTempC + '°C à cœur',
+      actions: wrapped ? 'Viande emballée — continue la cuisson' : "Suis les recommandations d'aération ci-dessus",
+      next: 'Retrait du feu, puis repos'
+    };
+  }
+  if(food && food.pullTempC!=null && internalTemp!=null && internalTemp>=food.pullTempC){
+    return {
+      name: 'Repos',
+      objective: food.restTarget ? ('Température après repos : ' + food.restTarget) : 'Laisser reposer',
+      actions: food.rest ? ('Sortir, envelopper, repos ' + food.rest) : 'Sortir et laisser reposer',
+      next: 'Service'
+    };
+  }
+  return {
+    name: 'Stabilisation',
+    objective: 'Maintenir ' + cook.targetTemp + '°C',
+    actions: "Suis les recommandations d'aération ci-dessus",
+    next: 'Fin de cuisson'
+  };
+}
+function pilotRenderTracking(cook, ambientTemp, internalTemp){
+  if(!els('trackAmbientVal')) return;
+  if(ambientTemp!=null){
+    els('trackAmbientVal').textContent = ambientTemp.toFixed(1)+'°';
+    const s = pilotRecentSlope(pilot.chartHistory,4);
+    els('trackAmbientTrend').textContent = s==null?'…':((s>0.15?'↗ +':s<-0.15?'↘ ':'→ ')+Math.abs(s).toFixed(1)+'°/min');
+  }
+  if(internalTemp!=null){
+    els('trackInternalVal').textContent = internalTemp.toFixed(1)+'°';
+    const si = pilotSlopeOf(pilot.internalHistory,4);
+    els('trackInternalTrend').textContent = si==null?'…':((si>0.05?'↗ +':si<-0.05?'↘ ':'→ ')+Math.abs(si).toFixed(1)+'°/min');
+  }
+  els('trackTargetVal').textContent = cook.targetTemp+'°';
+  els('trackVentReco').textContent = pilot.currentTargetPosition!=null ? pilot.currentTargetPosition : '--';
+  els('trackVentActual').textContent = pilot.userDeclaredPosition!=null ? pilot.userDeclaredPosition : '--';
+
+  const step = pilotCurrentStep(cook, internalTemp);
+  els('trackStepName').textContent = step.name;
+  els('trackStepObjective').textContent = step.objective;
+  els('trackStepActions').textContent = step.actions;
+  els('trackStepNext').textContent = step.next;
+
+  const lastAction = pilot.actionLog.length ? pilot.actionLog[pilot.actionLog.length-1] : null;
+  const sinceMin = lastAction ? Math.round((Date.now()-lastAction.timestamp)/60000) : null;
+  els('trackMeta').textContent = (sinceMin!=null ? 'Dernier réglage il y a '+sinceMin+' min · ' : 'Aucun réglage encore · ') + 'Relevé toutes les 30s';
+
+  els('trackAlertStrip').innerHTML = pilot.fireAlert.alerting
+    ? '<div style="background:var(--red);color:#fff;padding:6px;border-radius:8px;font-size:11px;text-align:center;">🔥 Le feu faiblit — ravive-le</div>' : '';
+  els('trackPerturbStrip').innerHTML = (pilot.perturbation.status==='asking')
+    ? '<div style="background:var(--gold);color:#000;padding:6px;border-radius:8px;font-size:11px;text-align:center;">⏸️ Chute détectée — réponds dans l\'onglet Cuisson</div>' : '';
+}
 function pilotEvaluate(ambientTemp, internalTemp, cook){
   if(!pilot.active || !cook) return;
   const now = Date.now();
@@ -1530,8 +1880,17 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
     if(pilot.internalHistory.length>8) pilot.internalHistory.shift();
     pilotRenderMilestone(cook, internalTemp);
   }
-  meaterEvaluateFireAlert(ambientTemp, cook);
   pilotRenderChart(cook);
+  pilotUpdateActionEffects(ambientTemp, now, cook);
+  pilotRenderTracking(cook, ambientTemp, internalTemp);
+
+  const perturbed = pilotHandlePerturbation(ambientTemp, now);
+  if(perturbed){
+    pilotRenderPhase();
+    return; // chute suspecte en cours d'évaluation/confirmée : pas de correction, pas d'alerte feu
+  }
+
+  meaterEvaluateFireAlert(ambientTemp, cook);
   pilotRenderTopVentWidget(ambientTemp, cook);
 
   if(pilot.phase === 'ramp'){
@@ -1544,6 +1903,7 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
       pilot.previousPosition = pilot.currentTargetPosition;
       pilot.currentTargetPercent = cook.percentUsed;
       pilot.currentTargetPosition = cook.positionUsed;
+      pilotLogAction('ramp-to-stable', pilot.previousPosition, cook.positionUsed, positionToPercent(pilot.previousPosition), cook.percentUsed, ambientTemp, pilotRecentSlope(pilot.chartHistory,4));
       pilot.lastPredTime = now; pilot.lastPredTemp = null;
       pilot.history = [];
       els('pilotRampNote').textContent = '';
@@ -1575,7 +1935,56 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
     return;
   }
 
-  // phase stabilizing — on ne compare/corrige qu'au rythme du modèle
+  // phase stabilizing
+  const slopeNow4 = pilotRecentSlope(pilot.chartHistory, 4);
+  const accel = pilotAcceleration(pilot.chartHistory, 4);
+  const excess = ambientTemp - cook.targetTemp;
+
+  // --- Gestion d'une fermeture d'urgence déjà en cours (cran 1 temporaire) ---
+  if(pilot.emergencyClose && pilot.emergencyClose.active){
+    const elapsedEmergencyMin = (now - pilot.emergencyClose.startedAt)/60000;
+    const decelerating = accel != null && accel < -0.15;
+    const stillRunningAway = slopeNow4 > 0.1 && !decelerating;
+    const overDuration = elapsedEmergencyMin >= pilot.emergencyClose.maxDurationMin;
+    if(!stillRunningAway || overDuration){
+      const exitPosition = excess > 3*settings.tolerance ? 2 : 1.5;
+      pilot.previousPosition = pilot.currentTargetPosition;
+      pilot.currentTargetPosition = exitPosition;
+      pilot.currentTargetPercent = positionToPercent(exitPosition);
+      pilotLogAction('emergency-exit', pilot.previousPosition, exitPosition, positionToPercent(pilot.previousPosition), pilot.currentTargetPercent, ambientTemp, slopeNow4);
+      pilot.emergencyClose = null;
+      pilot.emergencyCooldownUntil = now + pilot.tau*60000;
+      pilot.lastPredTemp = null; pilot.lastPredTime = now;
+      els('pilotCompareNote').textContent = !stillRunningAway
+        ? "La montée s'essouffle (pente ou accélération en baisse) — réouverture anticipée au cran " + exitPosition + " avant que le foyer ne s'éteigne, sans attendre la fin du délai."
+        : 'Durée maximale de fermeture atteinte — réouverture au cran ' + exitPosition + ' par sécurité, quelle que soit la tendance actuelle.';
+      pilotRenderVentWidget();
+      pilotRenderPhase();
+      return;
+    }
+    els('pilotCompareNote').innerHTML = '<b>Fermeture temporaire au cran 1 en cours</b> — encore ' + Math.max(0,Math.round(pilot.emergencyClose.maxDurationMin-elapsedEmergencyMin)) + ' min maximum avant réouverture forcée. Surveillance rapprochée (relevé à chaque mesure, pas d\'attente de 3 min).';
+    pilotRenderPhase();
+    return; // réévaluation rapide : pas de calcul normal tant que l'urgence est active
+  }
+
+  // --- Détection d'un emballement justifiant une fermeture d'urgence ---
+  const inCooldown = pilot.emergencyCooldownUntil && now < pilot.emergencyCooldownUntil;
+  const decelerating0 = accel != null && accel < -0.15;
+  const isRunaway = !inCooldown && excess > 2*settings.tolerance && slopeNow4 > 0.3 && !decelerating0;
+  if(isRunaway){
+    pilot.emergencyClose = { active:true, startedAt: now, maxDurationMin: 8 };
+    pilot.previousPosition = pilot.currentTargetPosition;
+    pilot.currentTargetPosition = 1;
+    pilot.currentTargetPercent = positionToPercent(1);
+    pilotLogAction('emergency-close', pilot.previousPosition, 1, positionToPercent(pilot.previousPosition), pilot.currentTargetPercent, ambientTemp, slopeNow4);
+    pilot.lastPredTemp = null; pilot.lastPredTime = now;
+    els('pilotCompareNote').innerHTML = '<b>Fermeture TEMPORAIRE au cran 1</b> (8 min maximum) pour stopper un emballement : température encore en hausse (+' + slopeNow4.toFixed(1) + '°C/min), ' + excess.toFixed(1) + '°C au-dessus de la cible. Réévaluation rapprochée en cours — réouverture automatique dès que la hausse ralentit ou après 8 min.';
+    pilotRenderVentWidget();
+    pilotRenderPhase();
+    return;
+  }
+
+  // --- Correction normale, au rythme du modèle (pas plus vite que l'effet du précédent réglage) ---
   const elapsedSincePred = pilot.lastPredTime ? (now-pilot.lastPredTime)/60000 : null;
   if(elapsedSincePred!=null && elapsedSincePred < PILOT_STABILIZE_INTERVAL_MIN*0.8){
     pilotRenderPhase();
@@ -1587,8 +1996,16 @@ function pilotEvaluate(ambientTemp, internalTemp, cook){
     const sensitivity = settings.sensitivity[cook.config] || 1.5;
     let newPercent = pilot.currentTargetPercent - (error/sensitivity);
     newPercent = Math.max(0, Math.min(100, newPercent));
-    const newPosition = roundToIncrement(percentToPosition(newPercent));
+    let newPosition = roundToIncrement(percentToPosition(newPercent));
+    const flooredPosition = safeDurablePosition(newPosition);
+    if(flooredPosition !== newPosition){
+      newPosition = flooredPosition;
+      newPercent = positionToPercent(newPosition);
+    }
     els('pilotCompareNote').textContent = 'Relevé : ' + ambientTemp.toFixed(1) + '°C — prévu : ' + pilot.lastPredTemp.toFixed(1) + '°C (écart ' + (error>=0?'+':'') + error.toFixed(1) + '°C).';
+    if(newPosition !== pilot.currentTargetPosition){
+      pilotLogAction('correction', pilot.currentTargetPosition, newPosition, pilot.currentTargetPercent, newPercent, ambientTemp, slopeNow4);
+    }
     pilot.previousPosition = pilot.currentTargetPosition;
     pilot.currentTargetPercent = newPercent;
     pilot.currentTargetPosition = newPosition;
@@ -1610,11 +2027,22 @@ els('pilotActualBottom').addEventListener('input', () => {
   els('pilotActualBottomVal').textContent = v;
   if(isNaN(v) || !pilot.active) return;
   const clamped = Math.max(1, Math.min(settings.maxPosition, v));
-  pilot.previousPosition = clamped;
   pilot.currentTargetPosition = clamped;
   pilot.currentTargetPercent = positionToPercent(clamped);
   pilot.lastPredTemp = null; pilot.lastPredTime = null;
   pilotRenderVentWidget();
+});
+els('pilotActualBottom').addEventListener('change', () => {
+  const v = parseFloat(els('pilotActualBottom').value);
+  if(isNaN(v) || !pilot.active) return;
+  const clamped = Math.max(1, Math.min(settings.maxPosition, v));
+  const prevPos = pilot.previousPosition;
+  if(Math.abs(clamped-prevPos) > 0.01){
+    const lastTemp = pilot.chartHistory.length ? pilot.chartHistory[pilot.chartHistory.length-1].temp : null;
+    pilotLogAction('user-manual', prevPos, clamped, positionToPercent(prevPos), positionToPercent(clamped), lastTemp, pilotRecentSlope(pilot.chartHistory,4));
+  }
+  pilot.previousPosition = clamped;
+  pilot.userDeclaredPosition = clamped;
 });
 els('pilotActualTop').addEventListener('input', () => {
   const v = parseFloat(els('pilotActualTop').value);
@@ -1624,6 +2052,78 @@ els('pilotActualTop').addEventListener('input', () => {
 });
 
 // ===================== GRAPHIQUE DE STABILITÉ (SVG) — prédictif =====================
+// Graphique enrichi façon MEATER : température à cœur + ambiante + cible, sur la même
+// chronologie, avec les réglages d'aération recommandés vs réellement appliqués, et les
+// périodes perturbées (couvercle/viande) surlignées.
+function svgCookChart(ambientHist, internalHist, targetAmbient, targetInternal, tolerance, actionLog, perturbedPeriods, predPts){
+  const W=340, H=210, padL=32, padR=32, padT=10, padB=40, laneH=22;
+  if(!ambientHist || ambientHist.length<2){
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}"><text x="${W/2}" y="${H/2}" fill="#9a9a9a" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">En attente de données…</text></svg>`;
+  }
+  const plotBottom = H-padB;
+  const t0 = ambientHist[0].t;
+  const tLast = ambientHist[ambientHist.length-1].t;
+  let allTemps = ambientHist.map(p=>p.temp).concat([targetAmbient]);
+  if(internalHist && internalHist.length) allTemps = allTemps.concat(internalHist.map(p=>p.temp));
+  if(targetInternal!=null) allTemps.push(targetInternal);
+  if(predPts) allTemps = allTemps.concat(predPts.map(p=>p.temp));
+  let tMin = Math.min(...allTemps)-5, tMax = Math.max(...allTemps)+5;
+  if(tMax-tMin<10){ const mid=(tMax+tMin)/2; tMin=mid-5; tMax=mid+5; }
+  const xMaxData = (tLast-t0)/60000;
+  const xMax = xMaxData + (predPts && predPts.length ? 15 : 0);
+  const x = m => padL + (m/Math.max(1,xMax))*(W-padL-padR);
+  const y = temp => padT + (1-(temp-tMin)/(tMax-tMin))*(plotBottom-padT);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg" font-family="Inter,sans-serif">`;
+
+  (perturbedPeriods||[]).forEach(p => {
+    const x1=x((p.start-t0)/60000), x2=x((p.end-t0)/60000);
+    svg += `<rect x="${x1.toFixed(1)}" y="${padT}" width="${Math.max(1,x2-x1).toFixed(1)}" height="${(plotBottom-padT).toFixed(1)}" fill="var(--gold)" opacity="0.12"/>`;
+    svg += `<text x="${x1.toFixed(1)}" y="${padT+9}" font-size="9">🔓</text>`;
+  });
+
+  const yTolTop=y(targetAmbient+tolerance), yTolBot=y(targetAmbient-tolerance);
+  svg += `<rect x="${padL}" y="${Math.min(yTolTop,yTolBot).toFixed(1)}" width="${W-padL-padR}" height="${Math.abs(yTolBot-yTolTop).toFixed(1)}" fill="var(--good)" opacity="0.08"/>`;
+  svg += `<line x1="${padL}" y1="${y(targetAmbient).toFixed(1)}" x2="${W-padR}" y2="${y(targetAmbient).toFixed(1)}" stroke="var(--gold)" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+  if(targetInternal!=null){
+    svg += `<line x1="${padL}" y1="${y(targetInternal).toFixed(1)}" x2="${W-padR}" y2="${y(targetInternal).toFixed(1)}" stroke="#c77dff" stroke-width="1.3" stroke-dasharray="2 3" opacity="0.6"/>`;
+  }
+
+  function pathOf(hist, color, width){
+    const d = hist.map((p,i) => (i===0?'M':'L')+x((p.t-t0)/60000).toFixed(1)+' '+y(p.temp).toFixed(1)).join(' ');
+    svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+  if(internalHist && internalHist.length>1) pathOf(internalHist, '#e05fd0', 2);
+  pathOf(ambientHist, 'var(--good)', 2);
+  if(predPts && predPts.length){
+    const d = predPts.map((p,i) => (i===0?'M':'L')+x(p.m).toFixed(1)+' '+y(p.temp).toFixed(1)).join(' ');
+    svg += `<path d="${d}" fill="none" stroke="var(--text-dim)" stroke-width="1.3" stroke-dasharray="3 3"/>`;
+  }
+
+  const laneY0 = plotBottom+8;
+  svg += `<rect x="${padL}" y="${laneY0.toFixed(1)}" width="${W-padL-padR}" height="${laneH}" fill="var(--bg-elev2)" rx="4"/>`;
+  svg += `<text x="${padL-4}" y="${(laneY0+6).toFixed(1)}" fill="#666" font-size="7" text-anchor="end">4</text>`;
+  svg += `<text x="${padL-4}" y="${(laneY0+laneH-1).toFixed(1)}" fill="#666" font-size="7" text-anchor="end">1</text>`;
+  (actionLog||[]).forEach(a => {
+    if(a.timestamp < t0) return;
+    const xx = x((a.timestamp-t0)/60000);
+    const frac = (a.newPosition-1)/3;
+    const yy = laneY0+laneH-3-frac*(laneH-6);
+    if(a.source === 'user-manual'){
+      svg += `<circle cx="${xx.toFixed(1)}" cy="${yy.toFixed(1)}" r="3.2" fill="#5b9bd5" stroke="var(--bg)" stroke-width="0.8"/>`;
+    } else {
+      svg += `<polygon points="${(xx-4).toFixed(1)},${(yy+3).toFixed(1)} ${(xx+4).toFixed(1)},${(yy+3).toFixed(1)} ${xx.toFixed(1)},${(yy-4.5).toFixed(1)}" fill="var(--gold)"/>`;
+    }
+  });
+  svg += `<text x="${padL}" y="${H-3}" fill="#9a9a9a" font-size="8">▲ aération reco.   ● aération réelle</text>`;
+
+  for(let i=0;i<=2;i++){
+    const v = tMin+(tMax-tMin)*i/2, yy=y(v);
+    svg += `<text x="${padL-4}" y="${(yy+3).toFixed(1)}" fill="#9a9a9a" font-size="8" text-anchor="end">${Math.round(v)}°</text>`;
+  }
+  svg += '</svg>';
+  return svg;
+}
 function svgTempChart(history, targetTemp, tolerance, predictModel){
   const W=320, H=140, padL=34, padR=10, padT=10, padB=22;
   if(!history || history.length<2){
