@@ -153,6 +153,23 @@
       <button class="btn btn-primary" id="btnFinishCook">Terminer &amp; enregistrer le résultat</button>
     </div>
 
+    <div class="card" id="meaterAlertBanner" style="display:none;border:2px solid var(--red);">
+      <h2 style="color:var(--red);">🔥 Le feu faiblit</h2>
+      <div class="note" style="margin-top:0;color:var(--text);" id="meaterAlertText"></div>
+      <button class="btn btn-primary" id="btnMeaterDismissAlert">J'ai relancé le feu</button>
+    </div>
+
+    <div class="card" id="pilotPanel" style="display:none;">
+      <h2 id="pilotPhaseLabel">Pilotage</h2>
+      <div id="pilotChart" style="margin:6px 0;"></div>
+      <div id="pilotVentWidget"></div>
+      <div class="note" style="margin-top:10px;" id="pilotRampNote"></div>
+      <div class="note" id="pilotPredictNote"></div>
+      <div class="note" id="pilotCompareNote"></div>
+      <div class="divider"></div>
+      <div class="note" style="margin-top:0;font-weight:600;color:var(--text);" id="pilotMilestoneNote"></div>
+    </div>
+
     <div id="setupBlock">
       <div class="card">
         <h2>Paramètres de cuisson</h2>
@@ -341,24 +358,10 @@
   </div>
 
   <div class="screen" id="screen-meater">
-    <div class="card" id="meaterAlertBanner" style="display:none;border:2px solid var(--red);">
-      <h2 style="color:var(--red);">🔥 Le feu faiblit</h2>
-      <div class="note" style="margin-top:0;color:var(--text);" id="meaterAlertText"></div>
-      <button class="btn btn-primary" id="btnMeaterDismissAlert">J'ai relancé le feu</button>
-    </div>
-
-    <div class="card" id="pilotPanel" style="display:none;">
-      <h2 id="pilotPhaseLabel">Pilotage</h2>
-      <div class="note" style="margin-top:0;" id="pilotRampNote"></div>
-      <div class="note" id="pilotPredictNote"></div>
-      <div class="note" id="pilotCompareNote"></div>
-      <div class="note" id="pilotActionNote" style="color:var(--gold);font-weight:600;"></div>
-    </div>
-
     <div class="card" id="meaterLoginCard">
       <h2>Connexion MEATER</h2>
       <div class="note" style="margin-top:0;">
-        Connecte ton compte MEATER Cloud pour surveiller la température à cœur en direct depuis Snake Pilot.
+        Connecte ton compte MEATER Cloud pour piloter ta cuisson en direct depuis l'onglet Cuisson.
         Tes identifiants sont envoyés uniquement à l'API officielle MEATER (public-api.cloud.meater.com) ; le jeton de connexion reste stocké seulement sur cet appareil.
       </div>
       <div class="field">
@@ -392,20 +395,8 @@
             <div style="font-size:28px;font-weight:700;" id="meaterTempAmbient">--°C</div>
           </div>
         </div>
-
-        <div class="field">
-          <label>Température cible à surveiller (°C)</label>
-          <input type="number" id="meaterTargetTemp">
-        </div>
-        <div class="field">
-          <label>Alerter si ça redescend de plus de (°C) après le pic</label>
-          <input type="number" id="meaterDropThreshold" value="3" min="1" max="20" step="0.5">
-        </div>
-
-        <button class="btn btn-primary" id="btnMeaterMonitorToggle">Démarrer la surveillance</button>
-        <span class="badge" id="meaterStatusBadge" style="margin-left:8px;"></span>
-
         <div class="note" id="meaterMonitorNote"></div>
+        <div class="note" style="margin-top:0;">Le pilotage en direct (graphique, cran d'aération recommandé, palier de la recette) s'affiche dans l'onglet <b>Cuisson</b> pendant une cuisson active.</div>
       </div>
 
       <button class="btn btn-ghost" id="btnMeaterLogout" style="margin-top:14px;border-color:var(--border);">Se déconnecter</button>
@@ -628,7 +619,8 @@ async function startCook(temp, duration, rec){
   const cook = {
     targetTemp: temp, targetDuration: duration, config: rec.config, bandIdx: rec.bandIdx,
     percentUsed: rec.percent, positionUsed: rec.position, maillons: rec.maillons, briquettes: rec.briquettes,
-    burnRateUsed: rec.burnRate, starsAtStart: rec.stars, status: 'pending', createdAt: new Date().toISOString()
+    burnRateUsed: rec.burnRate, starsAtStart: rec.stars, status: 'pending', createdAt: new Date().toISOString(),
+    foodKey: lastUsedFoodKey
   };
   const id = await store.addDoc('cooks', cook);
   await store.setDoc('settings/active', {cookId:id});
@@ -823,7 +815,7 @@ function catIconSVG(key){
    plusieurs sources spécialisées (compétitions, pitmasters, guides de fumage).
    confidence: 'sourcé' = convergence claire entre plusieurs sources ;
    'estimation' = peu ou pas de référence texane établie, valeur par analogie. */
-const FOODS = {"legumes":{"label":"Légumes","items":{"patates":{"label":"Pommes de terre fondantes (entières)","icon":"🥔","needsWeight":true,"weightUnit":"g","weightLabel":"Poids par pomme de terre (g)","weightDefault":220,"tempMin":110,"tempMax":121,"tempReco":115,"timeModel":{"type":"tiered","tiers":[{"maxG":150,"h":1.5},{"maxG":300,"h":2.25},{"maxG":450,"h":3},{"maxG":999999,"h":4}]},"pullTemp":"≈ 96–99°C, fondante à la sonde","wrapTemp":null,"rest":"Pas nécessaire","restTarget":"≈ 96–99°C","note":"Peau huilée et piquée avant cuisson ; possibilité de les envelopper de beurre en fin de cuisson.","confidence":"sourcé"},"oignons":{"label":"Oignons entiers fumés","icon":"🧅","needsWeight":true,"weightUnit":"g","weightLabel":"Poids par oignon (g)","weightDefault":180,"tempMin":110,"tempMax":121,"tempReco":115,"timeModel":{"type":"tiered","tiers":[{"maxG":150,"h":3.5},{"maxG":250,"h":4.5},{"maxG":999999,"h":5.5}]},"pullTemp":"Fondant à la fourchette","wrapTemp":null,"rest":"Pas nécessaire","restTarget":"Fondant à la fourchette","note":"Peler après le fumage, pas avant.","confidence":"sourcé"},"mais":{"label":"Maïs en épi","icon":"🌽","needsWeight":false,"tempMin":110,"tempMax":121,"tempReco":115,"timeModel":{"type":"fixed","h":2.5},"pullTemp":"Tendre à la fourchette","wrapTemp":null,"rest":"Pas nécessaire","restTarget":"—","note":"Épis non épluchés, trempés 12h dans une eau salée avant le fumage.","confidence":"sourcé"},"legumesdivers":{"label":"Légumes divers en plateau (courgettes, poivrons, champignons)","icon":"🫑","needsWeight":false,"tempMin":120,"tempMax":135,"tempReco":127,"timeModel":{"type":"fixed","h":1.75},"pullTemp":"Fondant à la fourchette","wrapTemp":null,"rest":"Pas nécessaire","restTarget":"—","note":"Moins documentée que les autres entrées — estimation générale à ajuster selon la découpe.","confidence":"estimation"}}},"porc":{"label":"Porc","items":{"epaule":{"label":"Épaule de porc (pulled pork)","icon":"🍖","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":2.5,"tempMin":107,"tempMax":121,"tempReco":113,"timeModel":{"type":"perKg","baseH":1,"perKgH":3.7},"pullTemp":"96°C (205°F)","wrapTemp":"71°C (160°F) — emballage papier boucher/alu (\"Texas crutch\") pour passer le palier de température","rest":"30 min à 1h (jusqu'à 2h emballé dans une glacière)","restTarget":"≈ 96°C — peu de hausse, le repos sert surtout à pouvoir effilocher","note":"Prévoir une marge : la température interne stagne souvent longtemps vers 70°C (\"stall\").","confidence":"sourcé"},"travers":{"label":"Travers de porc — spare ribs / St Louis (méthode 3-2-1)","icon":"🍖","needsWeight":false,"tempMin":107,"tempMax":121,"tempReco":113,"timeModel":{"type":"fixed","h":6},"pullTemp":"88–93°C, la viande se déchire facilement","wrapTemp":"Étape par le temps plutôt que la sonde : emballage après 3h (voir méthode 3-2-1 en note)","rest":"10 à 15 min","restTarget":"88–93°C","note":"3h fumées nues, 2h emballées avec un peu de liquide, 1h nues avec la sauce.","confidence":"sourcé"},"traversbb":{"label":"Travers de porc — baby back (méthode 2-2-1)","icon":"🍖","needsWeight":false,"tempMin":107,"tempMax":121,"tempReco":113,"timeModel":{"type":"fixed","h":5},"pullTemp":"88–93°C","wrapTemp":"Étape par le temps : emballage après 2h (voir méthode 2-2-1 en note)","rest":"10 à 15 min","restTarget":"88–93°C","note":"2h fumées nues, 2h emballées, 1h nues avec la sauce.","confidence":"sourcé"},"jarret":{"label":"Jarret de porc","icon":"🍖","needsWeight":true,"weightUnit":"g","weightLabel":"Poids par jarret (g)","weightDefault":900,"tempMin":107,"tempMax":121,"tempReco":113,"timeModel":{"type":"tiered","tiers":[{"maxG":800,"h":3.5},{"maxG":1100,"h":4.5},{"maxG":999999,"h":6}]},"pullTemp":"88–95°C (190–203°F), tendre et se détache de l'os","wrapTemp":"74°C (165°F) — emballage papier alu","rest":"15 à 20 min","restTarget":"≈ 88–95°C","note":"Alternative plus petite et économique à l'épaule pour un rendu façon pulled pork ; garder la couenne aide au fondant.","confidence":"sourcé"}}},"boeuf":{"label":"Bœuf","items":{"brisket":{"label":"Brisket (poitrine de bœuf)","icon":"🥩","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":5,"tempMin":107,"tempMax":135,"tempReco":113,"timeModel":{"type":"perKg","baseH":1,"perKgH":2.75},"pullTemp":"96–99°C (203–206°F)","wrapTemp":"74°C (165°F) — emballage papier boucher pour accélérer sans assécher","rest":"1h à 2h (jusqu'à 4h emballé dans une glacière)","restTarget":"≈ 96–99°C — peut très légèrement redescendre puis se stabiliser","note":"Enveloppage (papier boucher) vers 74°C à cœur pour accélérer la cuisson sans assécher.","confidence":"sourcé"},"dinoribs":{"label":"Ribs de bœuf (Dino ribs)","icon":"🍖","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids du rack (kg)","weightDefault":3.2,"tempMin":121,"tempMax":135,"tempReco":121,"timeModel":{"type":"perKg","baseH":0,"perKgH":2.2},"pullTemp":"93–96°C (200–203°F), la sonde s'enfonce comme dans du beurre","wrapTemp":"Emballage possible une fois le bark formé, après 4 à 5h (facultatif)","rest":"20 à 30 min","restTarget":"93–96°C","note":"Rack de 3 os (plate ribs). Contrairement aux autres pièces de bœuf, une température un peu plus haute (121–135°C) que 107°C est généralement conseillée : le collagène très abondant de cette pièce se convertit plus vite et le feu est plus stable dans cette plage.","confidence":"sourcé"},"cote":{"label":"Côte de bœuf (prime rib)","icon":"🍖","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":3,"tempMin":107,"tempMax":121,"tempReco":107,"timeModel":{"type":"perKg","baseH":0,"perKgH":1.3},"pullTemp":"52°C à la sonde (pour un rendu saignant à point)","wrapTemp":null,"rest":"20 à 30 min sous papier alu sans serrer","restTarget":"≈ 57–60°C après repos (montée par inertie thermique)","note":"Sortir vers 52°C à cœur puis reposer ; une saisie finale à feu vif peut parfaire la croûte. Ajuste la température de retrait selon la cuisson préférée.","confidence":"sourcé"},"picanha":{"label":"Picanha (adaptation basse température)","icon":"🥩","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":1.2,"tempMin":107,"tempMax":121,"tempReco":110,"timeModel":{"type":"perKg","baseH":0,"perKgH":1.3},"pullTemp":"50–52°C avant saisie","wrapTemp":"Saisie finale à feu vif (remplace l'étape d'emballage)","rest":"5 à 10 min après la saisie","restTarget":"≈ 54–57°C","note":"Peu de références \"texanes\" établies pour la picanha en basse température — traditionnellement grillée vive. Estimation par analogie avec la côte de bœuf, à valider par tes propres tests.","confidence":"estimation"},"paleron":{"label":"Paleron de bœuf","icon":"🥩","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":1.5,"tempMin":107,"tempMax":121,"tempReco":110,"timeModel":{"type":"perKg","baseH":1,"perKgH":3.7},"pullTemp":"93–96°C (200–205°F), tendre à la sonde","wrapTemp":"71°C (160°F) — emballage papier boucher/alu","rest":"30 min à 1h","restTarget":"≈ 93–96°C","note":"Pas de référence texane dédiée au paleron : estimation par analogie avec le \"chuck roast\" américain, la pièce d'épaule/collier la plus proche en anatomie et en comportement à la cuisson.","confidence":"estimation"},"macreuse":{"label":"Macreuse à braiser","icon":"🥩","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":1.3,"tempMin":107,"tempMax":121,"tempReco":110,"timeModel":{"type":"perKg","baseH":1,"perKgH":3.7},"pullTemp":"93–96°C (200–205°F), tendre à la sonde","wrapTemp":"71°C (160°F) — emballage papier boucher/alu","rest":"30 min à 1h","restTarget":"≈ 93–96°C","note":"Même famille que le paleron (muscle de l'épaule) — estimation par analogie avec le \"chuck roast\" américain, pas de référence texane dédiée à la macreuse elle-même.","confidence":"estimation"},"joue":{"label":"Joue de bœuf","icon":"🥩","needsWeight":true,"weightUnit":"g","weightLabel":"Poids par joue (g)","weightDefault":500,"tempMin":107,"tempMax":135,"tempReco":113,"timeModel":{"type":"tiered","tiers":[{"maxG":400,"h":4},{"maxG":600,"h":5},{"maxG":999999,"h":6}]},"pullTemp":"96–99°C (205–210°F), la sonde glisse sans résistance","wrapTemp":"74–77°C (165–170°F) — passage en papillote ou plat couvert avec un peu de liquide","rest":"20 à 30 min","restTarget":"≈ 96–99°C","note":"Souvent fumées 2 à 3h nues puis terminées en papillote ou petit plat couvert avec un peu de liquide (bière, fond de bœuf) pour finir la cuisson.","confidence":"sourcé"}}},"volaille":{"label":"Volaille","items":{"pouletentier":{"label":"Poulet entier","icon":"🍗","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":1.6,"tempMin":107,"tempMax":121,"tempReco":113,"timeModel":{"type":"perKg","baseH":0,"perKgH":1.1},"pullTemp":"71–73°C poitrine (76–77°C cuisse)","wrapTemp":null,"rest":"10 à 15 min","restTarget":"74°C poitrine / 79°C cuisse","note":"Peau plus croustillante si tu montes en température (150–165°C) en toute fin de cuisson.","confidence":"sourcé"},"blancpoulet":{"label":"Blanc de poulet","icon":"🍗","needsWeight":true,"weightUnit":"g","weightLabel":"Poids total des blancs (g)","weightDefault":400,"tempMin":107,"tempMax":121,"tempReco":113,"timeModel":{"type":"tiered","tiers":[{"maxG":200,"h":1},{"maxG":350,"h":1.5},{"maxG":999999,"h":2}]},"pullTemp":"≈ 71°C","wrapTemp":null,"rest":"5 à 10 min","restTarget":"74°C","note":"Cuisson rapide pour un fumage basse température — surveille de près pour éviter le dessèchement.","confidence":"sourcé"},"dinde":{"label":"Poitrine de dinde","icon":"🦃","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids de la pièce (kg)","weightDefault":2,"tempMin":107,"tempMax":121,"tempReco":113,"timeModel":{"type":"perKg","baseH":0,"perKgH":1.1},"pullTemp":"≈ 71–73°C","wrapTemp":null,"rest":"15 à 20 min","restTarget":"74°C","note":"","confidence":"sourcé"}}},"poisson":{"label":"Poisson","items":{"saumon":{"label":"Saumon (fumage à chaud)","icon":"🐟","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids du filet / pavé (kg)","weightDefault":1,"tempMin":100,"tempMax":110,"tempReco":107,"timeModel":{"type":"perKg","baseH":0.5,"perKgH":0.7},"pullTemp":"≈ 57–60°C","wrapTemp":null,"rest":"5 min","restTarget":"≈ 60–62°C","note":"Saumurage préalable (sel + sucre) puis séchage à l'air pour former une pellicule collante avant fumage.","confidence":"sourcé"},"truite":{"label":"Truite (fumage à chaud)","icon":"🐟","needsWeight":true,"weightUnit":"kg","weightLabel":"Poids du filet (kg)","weightDefault":0.5,"tempMin":100,"tempMax":110,"tempReco":107,"timeModel":{"type":"perKg","baseH":0.3,"perKgH":0.7},"pullTemp":"≈ 57–60°C","wrapTemp":null,"rest":"5 min","restTarget":"≈ 60–62°C","note":"Moins documentée que le saumon — estimation par analogie ; filets plus fins, cuisson généralement plus rapide.","confidence":"estimation"}}}};
+const FOODS = {"legumes": {"label": "Légumes", "items": {"patates": {"label": "Pommes de terre fondantes (entières)", "icon": "🥔", "needsWeight": true, "weightUnit": "g", "weightLabel": "Poids par pomme de terre (g)", "weightDefault": 220, "tempMin": 110, "tempMax": 121, "tempReco": 115, "timeModel": {"type": "tiered", "tiers": [{"maxG": 150, "h": 1.5}, {"maxG": 300, "h": 2.25}, {"maxG": 450, "h": 3}, {"maxG": 999999, "h": 4}]}, "pullTemp": "≈ 96–99°C, fondante à la sonde", "wrapTemp": null, "rest": "Pas nécessaire", "restTarget": "≈ 96–99°C", "note": "Peau huilée et piquée avant cuisson ; possibilité de les envelopper de beurre en fin de cuisson.", "confidence": "sourcé", "pullTempC": 96, "wrapTempC": null}, "oignons": {"label": "Oignons entiers fumés", "icon": "🧅", "needsWeight": true, "weightUnit": "g", "weightLabel": "Poids par oignon (g)", "weightDefault": 180, "tempMin": 110, "tempMax": 121, "tempReco": 115, "timeModel": {"type": "tiered", "tiers": [{"maxG": 150, "h": 3.5}, {"maxG": 250, "h": 4.5}, {"maxG": 999999, "h": 5.5}]}, "pullTemp": "Fondant à la fourchette", "wrapTemp": null, "rest": "Pas nécessaire", "restTarget": "Fondant à la fourchette", "note": "Peler après le fumage, pas avant.", "confidence": "sourcé", "pullTempC": null, "wrapTempC": null}, "mais": {"label": "Maïs en épi", "icon": "🌽", "needsWeight": false, "tempMin": 110, "tempMax": 121, "tempReco": 115, "timeModel": {"type": "fixed", "h": 2.5}, "pullTemp": "Tendre à la fourchette", "wrapTemp": null, "rest": "Pas nécessaire", "restTarget": "—", "note": "Épis non épluchés, trempés 12h dans une eau salée avant le fumage.", "confidence": "sourcé", "pullTempC": null, "wrapTempC": null}, "legumesdivers": {"label": "Légumes divers en plateau (courgettes, poivrons, champignons)", "icon": "🫑", "needsWeight": false, "tempMin": 120, "tempMax": 135, "tempReco": 127, "timeModel": {"type": "fixed", "h": 1.75}, "pullTemp": "Fondant à la fourchette", "wrapTemp": null, "rest": "Pas nécessaire", "restTarget": "—", "note": "Moins documentée que les autres entrées — estimation générale à ajuster selon la découpe.", "confidence": "estimation", "pullTempC": null, "wrapTempC": null}}}, "porc": {"label": "Porc", "items": {"epaule": {"label": "Épaule de porc (pulled pork)", "icon": "🍖", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 2.5, "tempMin": 107, "tempMax": 121, "tempReco": 113, "timeModel": {"type": "perKg", "baseH": 1, "perKgH": 3.7}, "pullTemp": "96°C (205°F)", "wrapTemp": "71°C (160°F) — emballage papier boucher/alu (\"Texas crutch\") pour passer le palier de température", "rest": "30 min à 1h (jusqu'à 2h emballé dans une glacière)", "restTarget": "≈ 96°C — peu de hausse, le repos sert surtout à pouvoir effilocher", "note": "Prévoir une marge : la température interne stagne souvent longtemps vers 70°C (\"stall\").", "confidence": "sourcé", "pullTempC": 96, "wrapTempC": 71}, "travers": {"label": "Travers de porc — spare ribs / St Louis (méthode 3-2-1)", "icon": "🍖", "needsWeight": false, "tempMin": 107, "tempMax": 121, "tempReco": 113, "timeModel": {"type": "fixed", "h": 6}, "pullTemp": "88–93°C, la viande se déchire facilement", "wrapTemp": "Étape par le temps plutôt que la sonde : emballage après 3h (voir méthode 3-2-1 en note)", "rest": "10 à 15 min", "restTarget": "88–93°C", "note": "3h fumées nues, 2h emballées avec un peu de liquide, 1h nues avec la sauce.", "confidence": "sourcé", "pullTempC": 88, "wrapTempC": null}, "traversbb": {"label": "Travers de porc — baby back (méthode 2-2-1)", "icon": "🍖", "needsWeight": false, "tempMin": 107, "tempMax": 121, "tempReco": 113, "timeModel": {"type": "fixed", "h": 5}, "pullTemp": "88–93°C", "wrapTemp": "Étape par le temps : emballage après 2h (voir méthode 2-2-1 en note)", "rest": "10 à 15 min", "restTarget": "88–93°C", "note": "2h fumées nues, 2h emballées, 1h nues avec la sauce.", "confidence": "sourcé", "pullTempC": 88, "wrapTempC": null}, "jarret": {"label": "Jarret de porc", "icon": "🍖", "needsWeight": true, "weightUnit": "g", "weightLabel": "Poids par jarret (g)", "weightDefault": 900, "tempMin": 107, "tempMax": 121, "tempReco": 113, "timeModel": {"type": "tiered", "tiers": [{"maxG": 800, "h": 3.5}, {"maxG": 1100, "h": 4.5}, {"maxG": 999999, "h": 6}]}, "pullTemp": "88–95°C (190–203°F), tendre et se détache de l'os", "wrapTemp": "74°C (165°F) — emballage papier alu", "rest": "15 à 20 min", "restTarget": "≈ 88–95°C", "note": "Alternative plus petite et économique à l'épaule pour un rendu façon pulled pork ; garder la couenne aide au fondant.", "confidence": "sourcé", "pullTempC": 88, "wrapTempC": 74}}}, "boeuf": {"label": "Bœuf", "items": {"brisket": {"label": "Brisket (poitrine de bœuf)", "icon": "🥩", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 5, "tempMin": 107, "tempMax": 135, "tempReco": 113, "timeModel": {"type": "perKg", "baseH": 1, "perKgH": 2.75}, "pullTemp": "96–99°C (203–206°F)", "wrapTemp": "74°C (165°F) — emballage papier boucher pour accélérer sans assécher", "rest": "1h à 2h (jusqu'à 4h emballé dans une glacière)", "restTarget": "≈ 96–99°C — peut très légèrement redescendre puis se stabiliser", "note": "Enveloppage (papier boucher) vers 74°C à cœur pour accélérer la cuisson sans assécher.", "confidence": "sourcé", "pullTempC": 96, "wrapTempC": 74}, "dinoribs": {"label": "Ribs de bœuf (Dino ribs)", "icon": "🍖", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids du rack (kg)", "weightDefault": 3.2, "tempMin": 121, "tempMax": 135, "tempReco": 121, "timeModel": {"type": "perKg", "baseH": 0, "perKgH": 2.2}, "pullTemp": "93–96°C (200–203°F), la sonde s'enfonce comme dans du beurre", "wrapTemp": "Emballage possible une fois le bark formé, après 4 à 5h (facultatif)", "rest": "20 à 30 min", "restTarget": "93–96°C", "note": "Rack de 3 os (plate ribs). Contrairement aux autres pièces de bœuf, une température un peu plus haute (121–135°C) que 107°C est généralement conseillée : le collagène très abondant de cette pièce se convertit plus vite et le feu est plus stable dans cette plage.", "confidence": "sourcé", "pullTempC": 93, "wrapTempC": null}, "cote": {"label": "Côte de bœuf (prime rib)", "icon": "🍖", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 3, "tempMin": 107, "tempMax": 121, "tempReco": 107, "timeModel": {"type": "perKg", "baseH": 0, "perKgH": 1.3}, "pullTemp": "52°C à la sonde (pour un rendu saignant à point)", "wrapTemp": null, "rest": "20 à 30 min sous papier alu sans serrer", "restTarget": "≈ 57–60°C après repos (montée par inertie thermique)", "note": "Sortir vers 52°C à cœur puis reposer ; une saisie finale à feu vif peut parfaire la croûte. Ajuste la température de retrait selon la cuisson préférée.", "confidence": "sourcé", "pullTempC": 52, "wrapTempC": null}, "picanha": {"label": "Picanha (adaptation basse température)", "icon": "🥩", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 1.2, "tempMin": 107, "tempMax": 121, "tempReco": 110, "timeModel": {"type": "perKg", "baseH": 0, "perKgH": 1.3}, "pullTemp": "50–52°C avant saisie", "wrapTemp": "Saisie finale à feu vif (remplace l'étape d'emballage)", "rest": "5 à 10 min après la saisie", "restTarget": "≈ 54–57°C", "note": "Peu de références \"texanes\" établies pour la picanha en basse température — traditionnellement grillée vive. Estimation par analogie avec la côte de bœuf, à valider par tes propres tests.", "confidence": "estimation", "pullTempC": 50, "wrapTempC": null}, "paleron": {"label": "Paleron de bœuf", "icon": "🥩", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 1.5, "tempMin": 107, "tempMax": 121, "tempReco": 110, "timeModel": {"type": "perKg", "baseH": 1, "perKgH": 3.7}, "pullTemp": "93–96°C (200–205°F), tendre à la sonde", "wrapTemp": "71°C (160°F) — emballage papier boucher/alu", "rest": "30 min à 1h", "restTarget": "≈ 93–96°C", "note": "Pas de référence texane dédiée au paleron : estimation par analogie avec le \"chuck roast\" américain, la pièce d'épaule/collier la plus proche en anatomie et en comportement à la cuisson.", "confidence": "estimation", "pullTempC": 93, "wrapTempC": 71}, "macreuse": {"label": "Macreuse à braiser", "icon": "🥩", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 1.3, "tempMin": 107, "tempMax": 121, "tempReco": 110, "timeModel": {"type": "perKg", "baseH": 1, "perKgH": 3.7}, "pullTemp": "93–96°C (200–205°F), tendre à la sonde", "wrapTemp": "71°C (160°F) — emballage papier boucher/alu", "rest": "30 min à 1h", "restTarget": "≈ 93–96°C", "note": "Même famille que le paleron (muscle de l'épaule) — estimation par analogie avec le \"chuck roast\" américain, pas de référence texane dédiée à la macreuse elle-même.", "confidence": "estimation", "pullTempC": 93, "wrapTempC": 71}, "joue": {"label": "Joue de bœuf", "icon": "🥩", "needsWeight": true, "weightUnit": "g", "weightLabel": "Poids par joue (g)", "weightDefault": 500, "tempMin": 107, "tempMax": 135, "tempReco": 113, "timeModel": {"type": "tiered", "tiers": [{"maxG": 400, "h": 4}, {"maxG": 600, "h": 5}, {"maxG": 999999, "h": 6}]}, "pullTemp": "96–99°C (205–210°F), la sonde glisse sans résistance", "wrapTemp": "74–77°C (165–170°F) — passage en papillote ou plat couvert avec un peu de liquide", "rest": "20 à 30 min", "restTarget": "≈ 96–99°C", "note": "Souvent fumées 2 à 3h nues puis terminées en papillote ou petit plat couvert avec un peu de liquide (bière, fond de bœuf) pour finir la cuisson.", "confidence": "sourcé", "pullTempC": 96, "wrapTempC": 74}}}, "volaille": {"label": "Volaille", "items": {"pouletentier": {"label": "Poulet entier", "icon": "🍗", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 1.6, "tempMin": 107, "tempMax": 121, "tempReco": 113, "timeModel": {"type": "perKg", "baseH": 0, "perKgH": 1.1}, "pullTemp": "71–73°C poitrine (76–77°C cuisse)", "wrapTemp": null, "rest": "10 à 15 min", "restTarget": "74°C poitrine / 79°C cuisse", "note": "Peau plus croustillante si tu montes en température (150–165°C) en toute fin de cuisson.", "confidence": "sourcé", "pullTempC": 71, "wrapTempC": null}, "blancpoulet": {"label": "Blanc de poulet", "icon": "🍗", "needsWeight": true, "weightUnit": "g", "weightLabel": "Poids total des blancs (g)", "weightDefault": 400, "tempMin": 107, "tempMax": 121, "tempReco": 113, "timeModel": {"type": "tiered", "tiers": [{"maxG": 200, "h": 1}, {"maxG": 350, "h": 1.5}, {"maxG": 999999, "h": 2}]}, "pullTemp": "≈ 71°C", "wrapTemp": null, "rest": "5 à 10 min", "restTarget": "74°C", "note": "Cuisson rapide pour un fumage basse température — surveille de près pour éviter le dessèchement.", "confidence": "sourcé", "pullTempC": 71, "wrapTempC": null}, "dinde": {"label": "Poitrine de dinde", "icon": "🦃", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids de la pièce (kg)", "weightDefault": 2, "tempMin": 107, "tempMax": 121, "tempReco": 113, "timeModel": {"type": "perKg", "baseH": 0, "perKgH": 1.1}, "pullTemp": "≈ 71–73°C", "wrapTemp": null, "rest": "15 à 20 min", "restTarget": "74°C", "note": "", "confidence": "sourcé", "pullTempC": 71, "wrapTempC": null}}}, "poisson": {"label": "Poisson", "items": {"saumon": {"label": "Saumon (fumage à chaud)", "icon": "🐟", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids du filet / pavé (kg)", "weightDefault": 1, "tempMin": 100, "tempMax": 110, "tempReco": 107, "timeModel": {"type": "perKg", "baseH": 0.5, "perKgH": 0.7}, "pullTemp": "≈ 57–60°C", "wrapTemp": null, "rest": "5 min", "restTarget": "≈ 60–62°C", "note": "Saumurage préalable (sel + sucre) puis séchage à l'air pour former une pellicule collante avant fumage.", "confidence": "sourcé", "pullTempC": 57, "wrapTempC": null}, "truite": {"label": "Truite (fumage à chaud)", "icon": "🐟", "needsWeight": true, "weightUnit": "kg", "weightLabel": "Poids du filet (kg)", "weightDefault": 0.5, "tempMin": 100, "tempMax": 110, "tempReco": 107, "timeModel": {"type": "perKg", "baseH": 0.3, "perKgH": 0.7}, "pullTemp": "≈ 57–60°C", "wrapTemp": null, "rest": "5 min", "restTarget": "≈ 60–62°C", "note": "Moins documentée que le saumon — estimation par analogie ; filets plus fins, cuisson généralement plus rapide.", "confidence": "estimation", "pullTempC": 57, "wrapTempC": null}}}};
 
 
 function computeFoodEstimate(item, weightValue){
@@ -845,6 +837,14 @@ let currentRec = null;
 let activeCookId = null;
 let activeCookData = null;
 let timerInterval = null;
+let lastUsedFoodKey = null;
+function findFoodItem(key){
+  if(!key) return null;
+  for(const cat of Object.values(FOODS)){
+    if(cat.items[key]) return cat.items[key];
+  }
+  return null;
+}
 
 const els = id => document.getElementById(id);
 
@@ -916,6 +916,7 @@ els('btnCalc').addEventListener('click', async () => {
   const temp = parseFloat(els('inTemp').value);
   const duration = parseFloat(els('inDuration').value);
   if(!temp || !duration || temp<60 || temp>250 || duration<=0){ alert('Vérifie la température et la durée saisies.'); return; }
+  lastUsedFoodKey = null;
   await renderRecommendation(temp, duration, els('inConfig').value);
 });
 
@@ -927,7 +928,8 @@ els('btnStart').addEventListener('click', async () => {
   activeCookData = {
     targetTemp:temp, targetDuration:duration, config:currentRec.config, bandIdx:currentRec.bandIdx,
     percentUsed:currentRec.percent, positionUsed:currentRec.position, maillons:currentRec.maillons,
-    briquettes:currentRec.briquettes, burnRateUsed:currentRec.burnRate, createdAt:new Date().toISOString()
+    briquettes:currentRec.briquettes, burnRateUsed:currentRec.burnRate, createdAt:new Date().toISOString(),
+    foodKey: lastUsedFoodKey
   };
   showActiveCook();
   if(CONFIGS[currentRec.config] && !CONFIGS[currentRec.config].isBasket) pilotStart(activeCookData);
@@ -1109,6 +1111,7 @@ els('btnFoodEstimate').addEventListener('click', () => {
 });
 
 els('btnUseFoodValues').addEventListener('click', async () => {
+  lastUsedFoodKey = selectedFoodItemKey;
   const temp = parseFloat(els('inFoodTemp').value);
   const duration = parseFloat(els('inFoodDuration').value);
   if(!temp || !duration){ alert('Vérifie la température et la durée.'); return; }
@@ -1156,7 +1159,6 @@ let meaterDevices = [];
 let meaterPollTimer = null;
 let meaterAlertInterval = null;
 let meaterOriginalTitle = document.title;
-let meaterMonitor = { active:false, peak:null, targetReached:false, alerting:false, targetTemp:null, dropThreshold:3 };
 
 function meaterBeep(){
   try{
@@ -1212,12 +1214,6 @@ function meaterRenderDeviceSelect(){
   els('meaterNoDeviceNote').textContent = meaterDevices.length===0 ?
     "Aucune sonde détectée. Assure-toi qu'une cuisson est en cours dans l'app MEATER (Bluetooth + Cloud actifs) — le délai de détection peut prendre quelques minutes." : '';
   els('meaterReadout').style.display = meaterDevices.length ? 'block' : 'none';
-  if(meaterDevices.length && !els('meaterTargetTemp').value){
-    const d = meaterDevices[0];
-    if(d.cook && d.cook.temperature && d.cook.temperature.target){
-      els('meaterTargetTemp').value = d.cook.temperature.target;
-    }
-  }
 }
 
 function meaterSelectedDevice(){
@@ -1233,61 +1229,52 @@ async function meaterPollOnce(){
     if(!d) return;
     els('meaterTempInternal').textContent = d.temperature.internal.toFixed(1) + '°C';
     els('meaterTempAmbient').textContent = d.temperature.ambient.toFixed(1) + '°C';
-    if(meaterMonitor.active) meaterEvaluate(d.temperature.internal);
-    if(pilot.active && activeCookData) pilotEvaluate(d.temperature.ambient, activeCookData);
+    if(pilot.active && activeCookData) pilotEvaluate(d.temperature.ambient, d.temperature.internal, activeCookData);
     els('meaterMonitorNote').textContent = '';
   }catch(e){
     els('meaterMonitorNote').textContent = 'Erreur de connexion à MEATER : ' + e.message + '. Nouvel essai dans 30s.';
   }
 }
 
-function meaterEvaluate(internal){
-  const target = meaterMonitor.targetTemp;
-  if(target == null || isNaN(target)) return;
-  const badge = els('meaterStatusBadge');
-  if(internal >= target){
-    meaterMonitor.peak = Math.max(meaterMonitor.peak ?? internal, internal);
-    meaterMonitor.targetReached = true;
-    badge.className = 'badge badge-good';
-    badge.textContent = 'Cible atteinte — pic ' + meaterMonitor.peak.toFixed(1) + '°C';
-    if(meaterMonitor.alerting) meaterStopAlert();
-  } else if(meaterMonitor.targetReached){
-    const drop = meaterMonitor.peak - internal;
-    badge.className = 'badge badge-bad';
-    badge.textContent = 'Redescend : -' + drop.toFixed(1) + '°C depuis le pic';
-    if(drop >= meaterMonitor.dropThreshold && !meaterMonitor.alerting){
-      meaterTriggerAlert(internal, drop);
+// Alerte "feu faible" : basée sur la température D'AMBIANCE (pas la sonde à viande, qui
+// stagne naturellement sans que ce soit un problème de feu). Démarre/s'arrête automatiquement
+// avec le pilotage, cible = température cible de la cuisson (cook.targetTemp).
+function meaterEvaluateFireAlert(ambientTemp, cook){
+  const fa = pilot.fireAlert;
+  if(ambientTemp >= cook.targetTemp - settings.tolerance){
+    fa.peak = Math.max(fa.peak ?? ambientTemp, ambientTemp);
+    fa.targetReached = true;
+    if(fa.alerting) meaterStopFireAlert();
+  } else if(fa.targetReached){
+    const drop = fa.peak - ambientTemp;
+    if(drop >= 8 && !fa.alerting){
+      meaterTriggerFireAlert(ambientTemp, drop);
     }
-  } else {
-    badge.className = 'badge';
-    badge.textContent = 'En montée vers la cible…';
   }
 }
-
-function meaterTriggerAlert(internal, drop){
-  meaterMonitor.alerting = true;
+function meaterTriggerFireAlert(ambientTemp, drop){
+  pilot.fireAlert.alerting = true;
   els('meaterAlertBanner').style.display = 'block';
-  els('meaterAlertText').textContent = 'Température à cœur : ' + internal.toFixed(1) + '°C, en baisse de ' + drop.toFixed(1) + '°C depuis le pic (' + meaterMonitor.peak.toFixed(1) + '°C). Le feu faiblit — ravive-le.';
+  els('meaterAlertText').textContent = 'Température d\'ambiance : ' + ambientTemp.toFixed(1) + '°C, en baisse de ' + drop.toFixed(1) + '°C depuis le pic (' + pilot.fireAlert.peak.toFixed(1) + '°C). Le feu faiblit — ravive-le, puis ouvre l\'aération basse au cran 4/4 le temps qu\'il reprenne.';
   els('meaterAlertBanner').scrollIntoView({behavior:'smooth'});
   meaterBeep();
   if(meaterAlertInterval) clearInterval(meaterAlertInterval);
   meaterAlertInterval = setInterval(() => {
     meaterBeep();
-    document.title = (document.title === meaterOriginalTitle) ? '🔥 MEATER : feu faible !' : meaterOriginalTitle;
+    document.title = (document.title === meaterOriginalTitle) ? '🔥 Snake Pilot : feu faible !' : meaterOriginalTitle;
   }, 8000);
   if('Notification' in window && Notification.permission === 'granted'){
-    try{ new Notification('Snake Pilot — le feu faiblit', {body:'Température à cœur en baisse de ' + drop.toFixed(1) + '°C. Ravive le feu.'}); }catch(e){}
+    try{ new Notification('Snake Pilot — le feu faiblit', {body:'Température d\'ambiance en baisse de ' + drop.toFixed(1) + '°C. Ravive le feu.'}); }catch(e){}
   }
 }
-
-function meaterStopAlert(){
-  meaterMonitor.alerting = false;
+function meaterStopFireAlert(){
+  pilot.fireAlert.alerting = false;
   els('meaterAlertBanner').style.display = 'none';
   if(meaterAlertInterval){ clearInterval(meaterAlertInterval); meaterAlertInterval = null; }
   document.title = meaterOriginalTitle;
 }
 
-els('btnMeaterDismissAlert').addEventListener('click', meaterStopAlert);
+els('btnMeaterDismissAlert').addEventListener('click', meaterStopFireAlert);
 
 els('btnMeaterLogin').addEventListener('click', async () => {
   const email = els('meaterEmail').value.trim();
@@ -1304,6 +1291,7 @@ els('btnMeaterLogin').addEventListener('click', async () => {
     els('meaterLoginNote').textContent = '';
     els('meaterPassword').value = '';
     if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    if(!meaterPollTimer) meaterPollTimer = setInterval(meaterPollOnce, 30000);
     await meaterPollOnce();
   }catch(e){
     els('meaterLoginNote').textContent = "Connexion impossible : " + e.message + ". Si le message apparaît instantanément, il se peut que le navigateur bloque l'appel direct à l'API MEATER (CORS) — ce cas nécessitera la version « robuste » avec relais externe.";
@@ -1315,33 +1303,11 @@ els('btnMeaterLogout').addEventListener('click', async () => {
   meaterAuth = null;
   meaterDevices = [];
   if(meaterPollTimer){ clearInterval(meaterPollTimer); meaterPollTimer = null; }
-  meaterMonitor = { active:false, peak:null, targetReached:false, alerting:false, targetTemp:null, dropThreshold:3 };
-  meaterStopAlert();
+  meaterStopFireAlert();
   await store.setDoc('meater/auth', null);
   els('meaterMonitorCard').style.display = 'none';
   els('meaterLoginCard').style.display = 'block';
   els('meaterEmail').value = ''; els('meaterPassword').value = '';
-});
-
-els('btnMeaterMonitorToggle').addEventListener('click', () => {
-  if(!meaterMonitor.active){
-    const target = parseFloat(els('meaterTargetTemp').value);
-    if(isNaN(target)){ els('meaterMonitorNote').textContent = 'Indique une température cible.'; return; }
-    meaterMonitor.active = true;
-    meaterMonitor.targetTemp = target;
-    meaterMonitor.dropThreshold = parseFloat(els('meaterDropThreshold').value) || 3;
-    meaterMonitor.peak = null;
-    meaterMonitor.targetReached = false;
-    els('btnMeaterMonitorToggle').textContent = 'Arrêter la surveillance';
-    if(!meaterPollTimer) meaterPollTimer = setInterval(meaterPollOnce, 30000);
-    meaterPollOnce();
-  } else {
-    meaterMonitor.active = false;
-    els('btnMeaterMonitorToggle').textContent = 'Démarrer la surveillance';
-    els('meaterStatusBadge').textContent = '';
-    els('meaterStatusBadge').className = 'badge';
-    meaterStopAlert();
-  }
 });
 
 async function meaterRestoreSession(){
@@ -1356,36 +1322,60 @@ async function meaterRestoreSession(){
 
 // ===================== PILOTAGE EN DIRECT (allumage → montée → stabilisation) =====================
 // Phase "ramp" : aération basse au cran 4/4 fixe. On mesure la pente réelle (°C/min) des
-// derniers relevés MEATER et on anticipe le moment de bascule vers le cran calibré, avant
-// d'atteindre la cible, pour ne pas dépasser — pas d'attente réactive.
+// derniers relevés MEATER (ambiance) et on anticipe le moment de bascule vers le cran
+// calibré, avant d'atteindre la cible, pour ne pas dépasser — pas d'attente réactive.
 // Phase "stabilizing" : toutes les ~3 min, on compare le relevé réel à la prévision faite
 // 3 min plus tôt (modèle Téq/τ), on corrige le cran en conséquence (même formule que la
-// calibration post-cuisson, appliquée ici en continu), puis on reformule une prévision
-// pour la prochaine vérification.
+// calibration post-cuisson, appliquée ici en continu), puis on reformule une prévision.
+// En parallèle : suivi du palier de la recette (emballage / fin) via la sonde à cœur, et
+// alerte "feu faible" basée sur l'AMBIANCE (pas la sonde à viande, qui stagne naturellement
+// sans que ce soit un problème de feu).
 const PILOT_STABILIZE_INTERVAL_MIN = 3;
-let pilot = { active:false, phase:null, teqPoints:null, tau:null, history:[],
-  lastPredTime:null, lastPredTemp:null, currentTargetPercent:null, currentTargetPosition:null };
+const PILOT_CHART_MAX_POINTS = 120;
+let pilot = { active:false, phase:null, teqPoints:null, tau:null, history:[], chartHistory:[],
+  lastPredTime:null, lastPredTemp:null, currentTargetPercent:null, currentTargetPosition:null, previousPosition:null,
+  internalHistory:[],
+  fireAlert:{ peak:null, targetReached:false, alerting:false } };
 
 async function pilotStart(cook){
   pilot.active = true;
   pilot.phase = 'ramp';
-  pilot.history = [];
+  pilot.history = []; pilot.chartHistory = []; pilot.internalHistory = [];
   pilot.teqPoints = await buildTeqPoints(cook.config);
   pilot.tau = TAU_MINUTES[cook.config] || 9;
   pilot.lastPredTime = null; pilot.lastPredTemp = null;
-  pilot.currentTargetPercent = 100; pilot.currentTargetPosition = 4;
+  pilot.currentTargetPercent = 100; pilot.currentTargetPosition = 4; pilot.previousPosition = 4;
+  pilot.fireAlert = { peak:null, targetReached:false, alerting:false };
   els('pilotPanel').style.display = 'block';
   els('pilotRampNote').textContent = "Montée en cours — mesure du rythme en cours, patiente quelques relevés.";
-  els('pilotPredictNote').textContent = ''; els('pilotCompareNote').textContent = ''; els('pilotActionNote').textContent = '';
+  els('pilotPredictNote').textContent = ''; els('pilotCompareNote').textContent = '';
+  pilotRenderVentWidget();
   pilotRenderPhase();
+  pilotRenderChart(cook);
+  pilotRenderMilestone(cook, null);
 }
 function pilotStop(){
   pilot.active = false;
   els('pilotPanel').style.display = 'none';
+  meaterStopFireAlert();
 }
 function pilotRenderPhase(){
   const labels = {ramp:'🔺 Montée en température', stabilizing:'🎯 Stabilisation'};
   els('pilotPhaseLabel').textContent = labels[pilot.phase] || 'Pilotage';
+}
+function pilotRenderVentWidget(){
+  const el = els('pilotVentWidget');
+  if(pilot.currentTargetPosition == null){ el.innerHTML = ''; return; }
+  const prev = pilot.previousPosition, cur = pilot.currentTargetPosition;
+  let arrow = '→', word = 'Garde', color = 'var(--text)';
+  if(cur > prev + 0.01){ arrow = '▲'; word = 'Augmente au'; color = 'var(--gold)'; }
+  else if(cur < prev - 0.01){ arrow = '▼'; word = 'Réduis au'; color = 'var(--red)'; }
+  else { word = 'Garde le'; }
+  el.innerHTML = '<div style="text-align:center;padding:10px 0;">' +
+    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">Aération basse — action</div>' +
+    '<div style="font-size:34px;font-weight:700;color:'+color+';margin:4px 0;">' + arrow + ' ' + cur + '</div>' +
+    '<div style="font-size:13px;color:var(--text-dim);">' + word + ' cran ' + cur + ' (' + pilot.currentTargetPercent.toFixed(0) + '% ouvert)</div>' +
+    '</div>';
 }
 function pilotSlope(){
   const h = pilot.history;
@@ -1395,11 +1385,57 @@ function pilotSlope(){
   if(dtMin < 1.5) return null;
   return (last.temp-first.temp)/dtMin;
 }
-function pilotEvaluate(ambientTemp, cook){
+function pilotSlopeOf(buffer, minWindowMin){
+  if(buffer.length<2) return null;
+  const first = buffer[0], last = buffer[buffer.length-1];
+  const dtMin = (last.t-first.t)/60000;
+  if(dtMin < minWindowMin) return null;
+  return (last.temp-first.temp)/dtMin;
+}
+function pilotRenderChart(cook){
+  els('pilotChart').innerHTML = svgTempChart(pilot.chartHistory, cook.targetTemp, settings.tolerance);
+}
+function pilotMilestoneInfo(cook, internalTemp){
+  const food = findFoodItem(cook.foodKey);
+  if(food && internalTemp != null){
+    if(food.wrapTempC != null && internalTemp < food.wrapTempC) return {type:'wrap', targetC: food.wrapTempC};
+    if(food.pullTempC != null && internalTemp < food.pullTempC) return {type:'pull', targetC: food.pullTempC};
+  }
+  return {type:'duration', targetC:null};
+}
+function pilotRenderMilestone(cook, internalTemp){
+  const el = els('pilotMilestoneNote');
+  const info = pilotMilestoneInfo(cook, internalTemp);
+  if(info.type === 'duration'){
+    const elapsedMin = (Date.now() - new Date(cook.createdAt).getTime())/60000;
+    const remaining = Math.max(0, cook.targetDuration*60 - elapsedMin);
+    el.textContent = (findFoodItem(cook.foodKey) ? 'Pas de palier de température restant — ' : 'Pas de palier défini pour cette cuisson — ') +
+      'fin prévue dans environ ' + Math.round(remaining/60*10)/10 + ' h (durée programmée).';
+    return;
+  }
+  const slope = pilotSlopeOf(pilot.internalHistory, 2);
+  const label = info.type === 'wrap' ? "avant l'emballage (" + info.targetC + '°C à cœur)' : 'avant la cible finale (' + info.targetC + '°C à cœur)';
+  if(!slope || slope <= 0.02){
+    el.textContent = 'Palier suivant : ' + label + ' — estimation du temps restant en attente de données (ou température à cœur stagnante, ex. "stall").';
+  } else {
+    const remainingMin = (info.targetC - internalTemp)/slope;
+    el.textContent = 'Palier suivant : ' + label + ' — encore ~' + Math.max(0,Math.round(remainingMin)) + ' min au rythme actuel (+' + slope.toFixed(2) + '°C/min à cœur). Estimation qui se met à jour en direct.';
+  }
+}
+function pilotEvaluate(ambientTemp, internalTemp, cook){
   if(!pilot.active || !cook) return;
   const now = Date.now();
   pilot.history.push({t:now, temp:ambientTemp});
   if(pilot.history.length>12) pilot.history.shift();
+  pilot.chartHistory.push({t:now, temp:ambientTemp});
+  if(pilot.chartHistory.length>PILOT_CHART_MAX_POINTS) pilot.chartHistory.shift();
+  if(internalTemp != null){
+    pilot.internalHistory.push({t:now, temp:internalTemp});
+    if(pilot.internalHistory.length>8) pilot.internalHistory.shift();
+    pilotRenderMilestone(cook, internalTemp);
+  }
+  meaterEvaluateFireAlert(ambientTemp, cook);
+  pilotRenderChart(cook);
 
   if(pilot.phase === 'ramp'){
     const slope = pilotSlope();
@@ -1407,16 +1443,18 @@ function pilotEvaluate(ambientTemp, cook){
       const remaining = (cook.targetTemp - ambientTemp)/slope;
       if(remaining <= pilot.tau){
         pilot.phase = 'stabilizing';
+        pilot.previousPosition = 4;
         pilot.currentTargetPercent = cook.percentUsed;
         pilot.currentTargetPosition = cook.positionUsed;
         pilot.lastPredTime = now; pilot.lastPredTemp = null;
         pilot.history = [];
         els('pilotRampNote').textContent = '';
-        els('pilotActionNote').innerHTML = 'Bascule anticipée : passe l\'aération basse au cran <b>' + cook.positionUsed + '</b> (' + cook.percentUsed.toFixed(0) + '%) maintenant — avant même d\'atteindre la cible — pour éviter un dépassement.';
+        els('pilotCompareNote').textContent = 'Bascule anticipée avant même d\'atteindre la cible, pour éviter un dépassement.';
       } else if(remaining > 0){
         els('pilotRampNote').textContent = 'Encore ~' + Math.round(remaining) + ' min avant la cible au rythme actuel (+' + slope.toFixed(1) + '°C/min). Garde le cran 4/4.';
       }
     }
+    pilotRenderVentWidget();
     pilotRenderPhase();
     return;
   }
@@ -1435,11 +1473,7 @@ function pilotEvaluate(ambientTemp, cook){
     newPercent = Math.max(0, Math.min(100, newPercent));
     const newPosition = roundToIncrement(percentToPosition(newPercent));
     els('pilotCompareNote').textContent = 'Relevé : ' + ambientTemp.toFixed(1) + '°C — prévu : ' + pilot.lastPredTemp.toFixed(1) + '°C (écart ' + (error>=0?'+':'') + error.toFixed(1) + '°C).';
-    if(Math.abs(newPosition-pilot.currentTargetPosition) >= (settings.increment/2)){
-      els('pilotActionNote').innerHTML = 'Ajuste l\'aération basse au cran <b>' + newPosition + '</b> (' + newPercent.toFixed(0) + '%) pour anticiper l\'écart avant qu\'il ne s\'installe.';
-    } else {
-      els('pilotActionNote').textContent = 'Cran actuel toujours adapté, aucun changement nécessaire.';
-    }
+    pilot.previousPosition = pilot.currentTargetPosition;
     pilot.currentTargetPercent = newPercent;
     pilot.currentTargetPosition = newPosition;
   }
@@ -1450,7 +1484,46 @@ function pilotEvaluate(ambientTemp, cook){
     pilot.lastPredTime = now;
     els('pilotPredictNote').textContent = 'Prochaine vérification dans ~' + PILOT_STABILIZE_INTERVAL_MIN + ' min — prévision : ' + pilot.lastPredTemp.toFixed(1) + '°C.';
   }
+  pilotRenderVentWidget();
   pilotRenderPhase();
+}
+
+// ===================== GRAPHIQUE DE STABILITÉ (SVG) =====================
+function svgTempChart(history, targetTemp, tolerance){
+  const W=320, H=140, padL=34, padR=10, padT=10, padB=22;
+  if(!history || history.length<2){
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}"><text x="${W/2}" y="${H/2}" fill="#9a9a9a" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">En attente de données…</text></svg>`;
+  }
+  const t0 = history[0].t;
+  const temps = history.map(p=>p.temp).concat([targetTemp]);
+  let tMin = Math.min(...temps)-4, tMax = Math.max(...temps)+4;
+  if(tMax-tMin < 8){ const mid=(tMax+tMin)/2; tMin=mid-4; tMax=mid+4; }
+  const xMax = Math.max(1, (history[history.length-1].t - t0)/60000);
+  const x = m => padL + (m/xMax) * (W-padL-padR);
+  const y = temp => padT + (1 - (temp-tMin)/(tMax-tMin)) * (H-padT-padB);
+
+  const path = history.map((p,i) => {
+    const xx = x((p.t-t0)/60000), yy = y(p.temp);
+    return (i===0?'M':'L') + xx.toFixed(1) + ' ' + yy.toFixed(1);
+  }).join(' ');
+
+  const yTarget = y(targetTemp);
+  const yTolTop = y(targetTemp+tolerance), yTolBot = y(targetTemp-tolerance);
+
+  let yTicks = '';
+  for(let i=0;i<=2;i++){
+    const v = tMin + (tMax-tMin)*i/2;
+    const yy = y(v);
+    yTicks += `<text x="${padL-6}" y="${(yy+3).toFixed(1)}" fill="#9a9a9a" font-size="9" text-anchor="end" font-family="Inter,sans-serif">${Math.round(v)}°</text>`;
+  }
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${padL}" y="${Math.min(yTolTop,yTolBot).toFixed(1)}" width="${W-padL-padR}" height="${Math.abs(yTolBot-yTolTop).toFixed(1)}" fill="var(--good)" opacity="0.08"/>
+    <line x1="${padL}" y1="${yTarget.toFixed(1)}" x2="${W-padR}" y2="${yTarget.toFixed(1)}" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="${W-padR}" y="${(yTarget-4).toFixed(1)}" fill="var(--gold)" font-size="9" text-anchor="end" font-family="Inter,sans-serif">cible ${targetTemp}°C</text>
+    ${yTicks}
+    <path d="${path}" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
 }
 
 async function init(){
