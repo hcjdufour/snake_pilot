@@ -53,11 +53,11 @@
   .card h2{font-size:15px;margin:0 0 12px;color:var(--red);letter-spacing:0.3px;text-transform:uppercase;}
   .field{margin-bottom:14px;}
   .field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;}
-  input[type=number], select{
+  input[type=number], input[type=email], input[type=password], select{
     width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
     padding:12px 12px;border-radius:10px;font-size:16px;font-family:inherit;
   }
-  input[type=number]:focus, select:focus{outline:none;border-color:var(--red);}
+  input[type=number]:focus, input[type=email]:focus, input[type=password]:focus, select:focus{outline:none;border-color:var(--red);}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
   .chip{
     background:var(--bg-elev2);border:1px solid var(--border);color:var(--text-dim);
@@ -340,6 +340,86 @@
     </div>
   </div>
 
+  <div class="screen" id="screen-meater">
+    <div class="card" id="meaterAlertBanner" style="display:none;border:2px solid var(--red);">
+      <h2 style="color:var(--red);">🔥 Le feu faiblit</h2>
+      <div class="note" style="margin-top:0;color:var(--text);" id="meaterAlertText"></div>
+      <button class="btn btn-primary" id="btnMeaterDismissAlert">J'ai relancé le feu</button>
+    </div>
+
+    <div class="card" id="pilotPanel" style="display:none;">
+      <h2 id="pilotPhaseLabel">Pilotage</h2>
+      <div class="note" style="margin-top:0;" id="pilotRampNote"></div>
+      <div class="note" id="pilotPredictNote"></div>
+      <div class="note" id="pilotCompareNote"></div>
+      <div class="note" id="pilotActionNote" style="color:var(--gold);font-weight:600;"></div>
+    </div>
+
+    <div class="card" id="meaterLoginCard">
+      <h2>Connexion MEATER</h2>
+      <div class="note" style="margin-top:0;">
+        Connecte ton compte MEATER Cloud pour surveiller la température à cœur en direct depuis Snake Pilot.
+        Tes identifiants sont envoyés uniquement à l'API officielle MEATER (public-api.cloud.meater.com) ; le jeton de connexion reste stocké seulement sur cet appareil.
+      </div>
+      <div class="field">
+        <label>Email MEATER</label>
+        <input type="email" id="meaterEmail" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Mot de passe</label>
+        <input type="password" id="meaterPassword" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" id="btnMeaterLogin">Se connecter</button>
+      <div class="note" id="meaterLoginNote"></div>
+    </div>
+
+    <div class="card" id="meaterMonitorCard" style="display:none;">
+      <h2>Sonde MEATER</h2>
+      <div class="field">
+        <label>Sonde</label>
+        <select id="meaterDeviceSelect"></select>
+      </div>
+      <div class="note" style="margin-top:0;" id="meaterNoDeviceNote"></div>
+
+      <div id="meaterReadout" style="display:none;">
+        <div style="display:flex;gap:16px;margin:14px 0;">
+          <div style="flex:1;text-align:center;background:var(--bg-elev2);border-radius:10px;padding:14px;">
+            <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;">Interne</div>
+            <div style="font-size:28px;font-weight:700;" id="meaterTempInternal">--°C</div>
+          </div>
+          <div style="flex:1;text-align:center;background:var(--bg-elev2);border-radius:10px;padding:14px;">
+            <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;">Ambiante</div>
+            <div style="font-size:28px;font-weight:700;" id="meaterTempAmbient">--°C</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Température cible à surveiller (°C)</label>
+          <input type="number" id="meaterTargetTemp">
+        </div>
+        <div class="field">
+          <label>Alerter si ça redescend de plus de (°C) après le pic</label>
+          <input type="number" id="meaterDropThreshold" value="3" min="1" max="20" step="0.5">
+        </div>
+
+        <button class="btn btn-primary" id="btnMeaterMonitorToggle">Démarrer la surveillance</button>
+        <span class="badge" id="meaterStatusBadge" style="margin-left:8px;"></span>
+
+        <div class="note" id="meaterMonitorNote"></div>
+      </div>
+
+      <button class="btn btn-ghost" id="btnMeaterLogout" style="margin-top:14px;border-color:var(--border);">Se déconnecter</button>
+    </div>
+
+    <div class="card">
+      <h2>Limites de cette version</h2>
+      <div class="note" style="margin-top:0;">
+        Cette surveillance fonctionne tant que Snake Pilot reste ouvert à l'écran et que le téléphone n'est pas verrouillé — le navigateur met les onglets en veille sinon.
+        Une version qui alerte même téléphone verrouillé ou app fermée nécessitera un petit service externe, à ajouter dans un second temps.
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="tabbar">
@@ -347,6 +427,7 @@
   <div class="tab" data-tab="recipe"><span class="ic">🥩</span><span class="tab-label">Recette</span></div>
   <div class="tab" data-tab="history"><span class="ic">📋</span><span class="tab-label">Historique</span></div>
   <div class="tab" data-tab="settings"><span class="ic">⚙️</span><span class="tab-label">Réglages</span></div>
+  <div class="tab" data-tab="meater"><span class="ic">🌡️</span><span class="tab-label">MEATER</span></div>
 </div>
 
 <script>
@@ -413,8 +494,53 @@ function pickAutoConfig(temp, duration){
   return '2x2';
 }
 function bucketKey(config, bandIdx){ return config+'_b'+bandIdx; }
-function percentToPosition(percent){ return 1 + (percent/100) * (settings.maxPosition-1); }
-function positionToPercent(pos){ return ((pos-1) / (settings.maxPosition-1)) * 100; }
+// Nombre de briquettes rougeoyantes (sorties de cheminée) à verser au départ du snake.
+// Calcul : (briquettes par maillon × 3) comme charge de base — proportionnel à la largeur
+// du front de flamme à établir — puis ajusté par bande de température visée et par
+// l'hypothèse d'un vent moyen faible (facteur fixe, l'air frais/le vent accélère la perte
+// de chaleur du foyer naissant, donc il faut une charge d'allumage un peu plus généreuse).
+const IGNITION_BAND_FACTOR = [1.0, 1.05, 1.1, 1.15, 1.25];
+const IGNITION_WIND_FACTOR = 1.1; // hypothèse : vent moyen faible
+function computeLitBriquettes(config, bandIdx){
+  const cfg = CONFIGS[config];
+  if(cfg.isBasket) return 11;
+  const raw = cfg.briqPerMaillon * 3 * IGNITION_BAND_FACTOR[bandIdx] * IGNITION_WIND_FACTOR;
+  return Math.max(6, Math.round(raw));
+}
+// Courbe réelle d'ouverture de l'aération basse (mesurée par photos le 16/09/2026) :
+// l'évent Weber en forme de "P" n'ouvre pas linéairement — reste très fermé jusqu'à
+// la position 2, puis s'ouvre nettement plus vite entre 2 et 4.
+const VENT_CURVE = [
+  {pos:1.0, pct:0},
+  {pos:1.5, pct:8},
+  {pos:2.0, pct:14},
+  {pos:2.5, pct:55},
+  {pos:3.0, pct:72},
+  {pos:3.5, pct:88},
+  {pos:4.0, pct:100},
+];
+function positionToPercent(pos){
+  pos = Math.max(1, Math.min(4, pos));
+  for(let i=0;i<VENT_CURVE.length-1;i++){
+    const a = VENT_CURVE[i], b = VENT_CURVE[i+1];
+    if(pos>=a.pos && pos<=b.pos){
+      const t = (b.pos===a.pos) ? 0 : (pos-a.pos)/(b.pos-a.pos);
+      return a.pct + t*(b.pct-a.pct);
+    }
+  }
+  return VENT_CURVE[VENT_CURVE.length-1].pct;
+}
+function percentToPosition(percent){
+  percent = Math.max(0, Math.min(100, percent));
+  for(let i=0;i<VENT_CURVE.length-1;i++){
+    const a = VENT_CURVE[i], b = VENT_CURVE[i+1];
+    if(percent>=a.pct && percent<=b.pct){
+      const t = (b.pct===a.pct) ? 0 : (percent-a.pct)/(b.pct-a.pct);
+      return a.pos + t*(b.pos-a.pos);
+    }
+  }
+  return VENT_CURVE[VENT_CURVE.length-1].pos;
+}
 function roundToIncrement(pos){ const inc = settings.increment; let r = Math.round(pos/inc)*inc; return Math.max(1, Math.min(settings.maxPosition, r)); }
 function computeStars(testCount, streak){ if(testCount===0) return 0; return Math.max(1, Math.min(3, streak)); }
 
@@ -433,6 +559,53 @@ async function getBurnRate(config){
   const doc = await store.getDoc('settings/burn');
   if(doc && doc[config]) return doc[config];
   return CONFIGS[config].defaultBurn;
+}
+
+// ===================== MODÈLE PRÉDICTIF DE TEMPÉRATURE =====================
+// Le kettle se comporte comme un système du premier ordre : à aération constante, la
+// température d'ambiance tend exponentiellement vers une valeur d'équilibre Téq propre à
+// ce % d'ouverture, avec une constante de temps τ (minutes) qui dépend de la masse
+// thermique du combustible (plus il y a de briquettes en combustion, plus τ est grand).
+// Téq(%) est reconstruite à partir des données de calibration déjà connues de l'app
+// (un point par bande de température testée), pas d'un nouveau jeu de données séparé.
+const TAU_MINUTES = {panier:6, '1x1':8, '2x1p':10, '2x2':12};
+const BAND_MIDTEMP = [105, 120, 130, 142.5, 165];
+
+async function buildTeqPoints(config){
+  const cfg = CONFIGS[config];
+  const points = [];
+  for(let b=0;b<BANDS.length;b++){
+    if(cfg.baseline[b]===null) continue;
+    const calib = await getCalibBucket(config, b);
+    points.push({pct: calib.percent, temp: BAND_MIDTEMP[b]});
+  }
+  points.sort((a,b) => a.pct-b.pct);
+  return points;
+}
+function interpolateTeq(points, pct){
+  if(!points || !points.length) return null;
+  if(points.length===1) return points[0].temp;
+  if(pct <= points[0].pct){
+    const slope = (points[1].temp-points[0].temp)/((points[1].pct-points[0].pct)||1);
+    return points[0].temp + slope*(pct-points[0].pct);
+  }
+  const last = points[points.length-1];
+  if(pct >= last.pct){
+    const prev = points[points.length-2];
+    const slope = (last.temp-prev.temp)/((last.pct-prev.pct)||1);
+    return last.temp + slope*(pct-last.pct);
+  }
+  for(let i=0;i<points.length-1;i++){
+    const a=points[i], b=points[i+1];
+    if(pct>=a.pct && pct<=b.pct){
+      const t=(b.pct===a.pct)?0:(pct-a.pct)/(b.pct-a.pct);
+      return a.temp + t*(b.temp-a.temp);
+    }
+  }
+  return last.temp;
+}
+function predictTemp(T0, Teq, tauMin, elapsedMin){
+  return Teq + (T0-Teq)*Math.exp(-elapsedMin/tauMin);
 }
 
 async function computeRecommendation(temp, duration, manualConfig){
@@ -727,9 +900,9 @@ async function renderRecommendation(temp, duration, manualConfig){
   els('statMaillons').textContent = isBasket ? '—' : rec.maillons;
   els('statStars').innerHTML = starsHtml(rec.stars);
 
-  els('ignitionNote').textContent = isBasket
-    ? 'Cuisson courte : pas d’allumage séparé nécessaire, les 10 à 12 briquettes du panier sont allumées directement (cheminée), puis placées dans le panier. Aération haute large ouverte.'
-    : 'Allumage : 8 à 10 briquettes en cheminée, à placer bien grises à l’extrémité du snake. Aération haute large ouverte, positionnée à l’opposé du foyer. Lèchefrite avec eau chaude conseillée pour stabiliser.';
+  els('ignitionNote').innerHTML = isBasket
+    ? "Allumage : les 10 à 12 briquettes du panier sont allumées directement (cheminée), puis placées dans le panier. Aération haute large ouverte, <b>aération basse au cran 4/4 (100%)</b> pour la montée, puis à réduire selon la sonde."
+    : 'Allumage : verse <b>' + computeLitBriquettes(rec.config, rec.bandIdx) + ' briquettes rougeoyantes</b> (sorties de cheminée, bien grises) à une extrémité des ' + rec.briquettes + ' briquettes du snake. Aération haute large ouverte, à l\'opposé du foyer. <b>Aération basse au cran 4/4 (100%)</b> pour la montée en température — connecte une sonde MEATER dans l\'onglet dédié pour être guidé automatiquement sur quand et à quel cran la réduire. Lèchefrite avec eau chaude conseillée pour stabiliser.';
 
   const calib = rec.calib;
   els('detailBody').innerHTML =
@@ -757,6 +930,7 @@ els('btnStart').addEventListener('click', async () => {
     briquettes:currentRec.briquettes, burnRateUsed:currentRec.burnRate, createdAt:new Date().toISOString()
   };
   showActiveCook();
+  if(CONFIGS[currentRec.config] && !CONFIGS[currentRec.config].isBasket) pilotStart(activeCookData);
 });
 
 function showActiveCook(){
@@ -817,6 +991,7 @@ els('btnSaveFinish').addEventListener('click', async () => {
 
   activeCookId = null; activeCookData = null;
   hideActiveCook();
+  pilotStop();
 });
 
 els('btnBackToNew').addEventListener('click', () => {
@@ -974,6 +1149,310 @@ els('btnReset').addEventListener('click', async () => {
 });
 
 /* ============================= INIT ============================= */
+// ===================== MEATER INTEGRATION =====================
+const MEATER_API = 'https://public-api.cloud.meater.com/v1';
+let meaterAuth = null;
+let meaterDevices = [];
+let meaterPollTimer = null;
+let meaterAlertInterval = null;
+let meaterOriginalTitle = document.title;
+let meaterMonitor = { active:false, peak:null, targetReached:false, alerting:false, targetTemp:null, dropThreshold:3 };
+
+function meaterBeep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'square';
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    o.start();
+    o.stop(ctx.currentTime + 0.35);
+    setTimeout(()=>ctx.close(), 600);
+  }catch(e){}
+}
+
+async function meaterLogin(email, password){
+  const res = await fetch(MEATER_API + '/login', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email, password})
+  });
+  const json = await res.json();
+  if(!res.ok || json.statusCode !== 200){
+    throw new Error((json && json.status) || ('HTTP '+res.status));
+  }
+  return json.data;
+}
+
+async function meaterFetchDevices(){
+  const res = await fetch(MEATER_API + '/devices', {
+    headers: {'Authorization': 'Bearer ' + meaterAuth.token}
+  });
+  const json = await res.json();
+  if(!res.ok || json.statusCode !== 200){
+    throw new Error((json && json.status) || ('HTTP '+res.status));
+  }
+  return json.data.devices || [];
+}
+
+function meaterRenderDeviceSelect(){
+  const sel = els('meaterDeviceSelect');
+  const prevValue = sel.value;
+  sel.innerHTML = '';
+  meaterDevices.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    const label = (d.cook && d.cook.name) ? d.cook.name : ('Sonde ' + d.id.slice(0,6));
+    opt.textContent = label + ' — ' + d.temperature.internal.toFixed(1) + '°C';
+    sel.appendChild(opt);
+  });
+  if(prevValue && meaterDevices.some(d => d.id===prevValue)) sel.value = prevValue;
+  els('meaterNoDeviceNote').textContent = meaterDevices.length===0 ?
+    "Aucune sonde détectée. Assure-toi qu'une cuisson est en cours dans l'app MEATER (Bluetooth + Cloud actifs) — le délai de détection peut prendre quelques minutes." : '';
+  els('meaterReadout').style.display = meaterDevices.length ? 'block' : 'none';
+  if(meaterDevices.length && !els('meaterTargetTemp').value){
+    const d = meaterDevices[0];
+    if(d.cook && d.cook.temperature && d.cook.temperature.target){
+      els('meaterTargetTemp').value = d.cook.temperature.target;
+    }
+  }
+}
+
+function meaterSelectedDevice(){
+  const id = els('meaterDeviceSelect').value;
+  return meaterDevices.find(d => d.id === id) || meaterDevices[0];
+}
+
+async function meaterPollOnce(){
+  try{
+    meaterDevices = await meaterFetchDevices();
+    meaterRenderDeviceSelect();
+    const d = meaterSelectedDevice();
+    if(!d) return;
+    els('meaterTempInternal').textContent = d.temperature.internal.toFixed(1) + '°C';
+    els('meaterTempAmbient').textContent = d.temperature.ambient.toFixed(1) + '°C';
+    if(meaterMonitor.active) meaterEvaluate(d.temperature.internal);
+    if(pilot.active && activeCookData) pilotEvaluate(d.temperature.ambient, activeCookData);
+    els('meaterMonitorNote').textContent = '';
+  }catch(e){
+    els('meaterMonitorNote').textContent = 'Erreur de connexion à MEATER : ' + e.message + '. Nouvel essai dans 30s.';
+  }
+}
+
+function meaterEvaluate(internal){
+  const target = meaterMonitor.targetTemp;
+  if(target == null || isNaN(target)) return;
+  const badge = els('meaterStatusBadge');
+  if(internal >= target){
+    meaterMonitor.peak = Math.max(meaterMonitor.peak ?? internal, internal);
+    meaterMonitor.targetReached = true;
+    badge.className = 'badge badge-good';
+    badge.textContent = 'Cible atteinte — pic ' + meaterMonitor.peak.toFixed(1) + '°C';
+    if(meaterMonitor.alerting) meaterStopAlert();
+  } else if(meaterMonitor.targetReached){
+    const drop = meaterMonitor.peak - internal;
+    badge.className = 'badge badge-bad';
+    badge.textContent = 'Redescend : -' + drop.toFixed(1) + '°C depuis le pic';
+    if(drop >= meaterMonitor.dropThreshold && !meaterMonitor.alerting){
+      meaterTriggerAlert(internal, drop);
+    }
+  } else {
+    badge.className = 'badge';
+    badge.textContent = 'En montée vers la cible…';
+  }
+}
+
+function meaterTriggerAlert(internal, drop){
+  meaterMonitor.alerting = true;
+  els('meaterAlertBanner').style.display = 'block';
+  els('meaterAlertText').textContent = 'Température à cœur : ' + internal.toFixed(1) + '°C, en baisse de ' + drop.toFixed(1) + '°C depuis le pic (' + meaterMonitor.peak.toFixed(1) + '°C). Le feu faiblit — ravive-le.';
+  els('meaterAlertBanner').scrollIntoView({behavior:'smooth'});
+  meaterBeep();
+  if(meaterAlertInterval) clearInterval(meaterAlertInterval);
+  meaterAlertInterval = setInterval(() => {
+    meaterBeep();
+    document.title = (document.title === meaterOriginalTitle) ? '🔥 MEATER : feu faible !' : meaterOriginalTitle;
+  }, 8000);
+  if('Notification' in window && Notification.permission === 'granted'){
+    try{ new Notification('Snake Pilot — le feu faiblit', {body:'Température à cœur en baisse de ' + drop.toFixed(1) + '°C. Ravive le feu.'}); }catch(e){}
+  }
+}
+
+function meaterStopAlert(){
+  meaterMonitor.alerting = false;
+  els('meaterAlertBanner').style.display = 'none';
+  if(meaterAlertInterval){ clearInterval(meaterAlertInterval); meaterAlertInterval = null; }
+  document.title = meaterOriginalTitle;
+}
+
+els('btnMeaterDismissAlert').addEventListener('click', meaterStopAlert);
+
+els('btnMeaterLogin').addEventListener('click', async () => {
+  const email = els('meaterEmail').value.trim();
+  const password = els('meaterPassword').value;
+  if(!email || !password){ els('meaterLoginNote').textContent = 'Renseigne ton email et ton mot de passe MEATER.'; return; }
+  els('btnMeaterLogin').disabled = true;
+  els('meaterLoginNote').textContent = 'Connexion en cours…';
+  try{
+    const data = await meaterLogin(email, password);
+    meaterAuth = data;
+    await store.setDoc('meater/auth', data);
+    els('meaterLoginCard').style.display = 'none';
+    els('meaterMonitorCard').style.display = 'block';
+    els('meaterLoginNote').textContent = '';
+    els('meaterPassword').value = '';
+    if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    await meaterPollOnce();
+  }catch(e){
+    els('meaterLoginNote').textContent = "Connexion impossible : " + e.message + ". Si le message apparaît instantanément, il se peut que le navigateur bloque l'appel direct à l'API MEATER (CORS) — ce cas nécessitera la version « robuste » avec relais externe.";
+  }
+  els('btnMeaterLogin').disabled = false;
+});
+
+els('btnMeaterLogout').addEventListener('click', async () => {
+  meaterAuth = null;
+  meaterDevices = [];
+  if(meaterPollTimer){ clearInterval(meaterPollTimer); meaterPollTimer = null; }
+  meaterMonitor = { active:false, peak:null, targetReached:false, alerting:false, targetTemp:null, dropThreshold:3 };
+  meaterStopAlert();
+  await store.setDoc('meater/auth', null);
+  els('meaterMonitorCard').style.display = 'none';
+  els('meaterLoginCard').style.display = 'block';
+  els('meaterEmail').value = ''; els('meaterPassword').value = '';
+});
+
+els('btnMeaterMonitorToggle').addEventListener('click', () => {
+  if(!meaterMonitor.active){
+    const target = parseFloat(els('meaterTargetTemp').value);
+    if(isNaN(target)){ els('meaterMonitorNote').textContent = 'Indique une température cible.'; return; }
+    meaterMonitor.active = true;
+    meaterMonitor.targetTemp = target;
+    meaterMonitor.dropThreshold = parseFloat(els('meaterDropThreshold').value) || 3;
+    meaterMonitor.peak = null;
+    meaterMonitor.targetReached = false;
+    els('btnMeaterMonitorToggle').textContent = 'Arrêter la surveillance';
+    if(!meaterPollTimer) meaterPollTimer = setInterval(meaterPollOnce, 30000);
+    meaterPollOnce();
+  } else {
+    meaterMonitor.active = false;
+    els('btnMeaterMonitorToggle').textContent = 'Démarrer la surveillance';
+    els('meaterStatusBadge').textContent = '';
+    els('meaterStatusBadge').className = 'badge';
+    meaterStopAlert();
+  }
+});
+
+async function meaterRestoreSession(){
+  const saved = await store.getDoc('meater/auth');
+  if(saved && saved.token){
+    meaterAuth = saved;
+    els('meaterLoginCard').style.display = 'none';
+    els('meaterMonitorCard').style.display = 'block';
+    try{ await meaterPollOnce(); }catch(e){}
+  }
+}
+
+// ===================== PILOTAGE EN DIRECT (allumage → montée → stabilisation) =====================
+// Phase "ramp" : aération basse au cran 4/4 fixe. On mesure la pente réelle (°C/min) des
+// derniers relevés MEATER et on anticipe le moment de bascule vers le cran calibré, avant
+// d'atteindre la cible, pour ne pas dépasser — pas d'attente réactive.
+// Phase "stabilizing" : toutes les ~3 min, on compare le relevé réel à la prévision faite
+// 3 min plus tôt (modèle Téq/τ), on corrige le cran en conséquence (même formule que la
+// calibration post-cuisson, appliquée ici en continu), puis on reformule une prévision
+// pour la prochaine vérification.
+const PILOT_STABILIZE_INTERVAL_MIN = 3;
+let pilot = { active:false, phase:null, teqPoints:null, tau:null, history:[],
+  lastPredTime:null, lastPredTemp:null, currentTargetPercent:null, currentTargetPosition:null };
+
+async function pilotStart(cook){
+  pilot.active = true;
+  pilot.phase = 'ramp';
+  pilot.history = [];
+  pilot.teqPoints = await buildTeqPoints(cook.config);
+  pilot.tau = TAU_MINUTES[cook.config] || 9;
+  pilot.lastPredTime = null; pilot.lastPredTemp = null;
+  pilot.currentTargetPercent = 100; pilot.currentTargetPosition = 4;
+  els('pilotPanel').style.display = 'block';
+  els('pilotRampNote').textContent = "Montée en cours — mesure du rythme en cours, patiente quelques relevés.";
+  els('pilotPredictNote').textContent = ''; els('pilotCompareNote').textContent = ''; els('pilotActionNote').textContent = '';
+  pilotRenderPhase();
+}
+function pilotStop(){
+  pilot.active = false;
+  els('pilotPanel').style.display = 'none';
+}
+function pilotRenderPhase(){
+  const labels = {ramp:'🔺 Montée en température', stabilizing:'🎯 Stabilisation'};
+  els('pilotPhaseLabel').textContent = labels[pilot.phase] || 'Pilotage';
+}
+function pilotSlope(){
+  const h = pilot.history;
+  if(h.length<2) return null;
+  const first = h[0], last = h[h.length-1];
+  const dtMin = (last.t-first.t)/60000;
+  if(dtMin < 1.5) return null;
+  return (last.temp-first.temp)/dtMin;
+}
+function pilotEvaluate(ambientTemp, cook){
+  if(!pilot.active || !cook) return;
+  const now = Date.now();
+  pilot.history.push({t:now, temp:ambientTemp});
+  if(pilot.history.length>12) pilot.history.shift();
+
+  if(pilot.phase === 'ramp'){
+    const slope = pilotSlope();
+    if(slope && slope>0.1){
+      const remaining = (cook.targetTemp - ambientTemp)/slope;
+      if(remaining <= pilot.tau){
+        pilot.phase = 'stabilizing';
+        pilot.currentTargetPercent = cook.percentUsed;
+        pilot.currentTargetPosition = cook.positionUsed;
+        pilot.lastPredTime = now; pilot.lastPredTemp = null;
+        pilot.history = [];
+        els('pilotRampNote').textContent = '';
+        els('pilotActionNote').innerHTML = 'Bascule anticipée : passe l\'aération basse au cran <b>' + cook.positionUsed + '</b> (' + cook.percentUsed.toFixed(0) + '%) maintenant — avant même d\'atteindre la cible — pour éviter un dépassement.';
+      } else if(remaining > 0){
+        els('pilotRampNote').textContent = 'Encore ~' + Math.round(remaining) + ' min avant la cible au rythme actuel (+' + slope.toFixed(1) + '°C/min). Garde le cran 4/4.';
+      }
+    }
+    pilotRenderPhase();
+    return;
+  }
+
+  // phase stabilizing — on ne compare/corrige qu'au rythme du modèle
+  const elapsedSincePred = pilot.lastPredTime ? (now-pilot.lastPredTime)/60000 : null;
+  if(elapsedSincePred!=null && elapsedSincePred < PILOT_STABILIZE_INTERVAL_MIN*0.8){
+    pilotRenderPhase();
+    return;
+  }
+
+  if(pilot.lastPredTemp != null){
+    const error = ambientTemp - pilot.lastPredTemp;
+    const sensitivity = settings.sensitivity[cook.config] || 1.5;
+    let newPercent = pilot.currentTargetPercent - (error/sensitivity);
+    newPercent = Math.max(0, Math.min(100, newPercent));
+    const newPosition = roundToIncrement(percentToPosition(newPercent));
+    els('pilotCompareNote').textContent = 'Relevé : ' + ambientTemp.toFixed(1) + '°C — prévu : ' + pilot.lastPredTemp.toFixed(1) + '°C (écart ' + (error>=0?'+':'') + error.toFixed(1) + '°C).';
+    if(Math.abs(newPosition-pilot.currentTargetPosition) >= (settings.increment/2)){
+      els('pilotActionNote').innerHTML = 'Ajuste l\'aération basse au cran <b>' + newPosition + '</b> (' + newPercent.toFixed(0) + '%) pour anticiper l\'écart avant qu\'il ne s\'installe.';
+    } else {
+      els('pilotActionNote').textContent = 'Cran actuel toujours adapté, aucun changement nécessaire.';
+    }
+    pilot.currentTargetPercent = newPercent;
+    pilot.currentTargetPosition = newPosition;
+  }
+
+  const Teq = interpolateTeq(pilot.teqPoints, pilot.currentTargetPercent);
+  if(Teq != null){
+    pilot.lastPredTemp = predictTemp(ambientTemp, Teq, pilot.tau, PILOT_STABILIZE_INTERVAL_MIN);
+    pilot.lastPredTime = now;
+    els('pilotPredictNote').textContent = 'Prochaine vérification dans ~' + PILOT_STABILIZE_INTERVAL_MIN + ' min — prévision : ' + pilot.lastPredTemp.toFixed(1) + '°C.';
+  }
+  pilotRenderPhase();
+}
+
 async function init(){
   store = await initStore();
   const savedSettings = await store.getDoc('settings/main');
@@ -993,8 +1472,11 @@ async function init(){
       activeCookId = active.cookId;
       activeCookData = cookDoc;
       showActiveCook();
+      if(CONFIGS[cookDoc.config] && !CONFIGS[cookDoc.config].isBasket) pilotStart(activeCookData);
     }
   }
+
+  await meaterRestoreSession();
 
   await renderRecommendation(parseFloat(els('inTemp').value), parseFloat(els('inDuration').value), 'auto');
 }
